@@ -128,7 +128,8 @@ def simulate_dynamics(initial_pos, initial_vel, stepsize, n_steps, energy_fn):
         """
         # from pos(t) and vel(t-stepsize/2), compute vel(t+stepsize/2)
         dE_dpos = T.grad(energy_fn(pos).sum(), pos)
-        #step_n_1 means we have n*1 vector, in this way, theano will automatically broadcast it to elementwisely multiply with the matrix
+        #step_n_1: [n]*[1] matrix (makes a column out of the vector), in this way, theano will automatically broadcast it to elementwisely multiply
+      
         step_n_1 = step.dimshuffle(0,'x')
         new_vel = vel - step_n_1 * dE_dpos
         # from vel(t+stepsize/2) compute pos(t+stepsize)
@@ -138,6 +139,7 @@ def simulate_dynamics(initial_pos, initial_vel, stepsize, n_steps, energy_fn):
     # compute velocity at time-step: t + stepsize/2
     initial_energy = energy_fn(initial_pos)
     dE_dpos = T.grad(initial_energy.sum(), initial_pos)
+    #stepsize_n_1: [n]*[1] matrix  (makes a column out of the vector). 
     stepsize_n_1 = stepsize.dimshuffle(0,'x')
     vel_half_step = initial_vel - 0.5 * stepsize_n_1 * dE_dpos
 
@@ -155,7 +157,7 @@ def simulate_dynamics(initial_pos, initial_vel, stepsize, n_steps, energy_fn):
         non_sequences=[stepsize],
         n_steps=n_steps - 1)
     # final_pos and final_vel contains all the trajectories from length 2 to n_steps
-    # 3D matrix: number of steps * number of samples * ndim
+    # 3D matrix: number of leapfrogsteps * number of samples * ndim
     #final_pos = all_pos[10:]
     #final_vel = all_vel[10:]
     final_pos = all_pos
@@ -178,6 +180,14 @@ def simulate_dynamics(initial_pos, initial_vel, stepsize, n_steps, energy_fn):
     
     """
     #vectorize to compute energy
+    """
+    Since energy_fn() only accepts the 2D matrix, where each row is the sample, each column represents element in each dimen.
+    Thus, we vectorize the 3D matrix to the 2D matrix in order to be fed into the energy_gn() function.
+    
+    final_pos_vec: reshape 3D matrix ([leapfrog_steps]*[samples]*[dims]) into 2D matrix ([steps*samples]*[dims]). 
+    energy_vec: 1D vector [steps*samples], each element represents the energy for each sample.
+    energy: reshape energy_vec back into the 2D matrix ([leapfrog_steps]*[samples])
+    """
     final_pos_vec = T.reshape(final_pos, (final_pos.shape[0]*final_pos.shape[1],final_pos.shape[2]))
     energy_vec = energy_fn(final_pos_vec)
     energy = T.reshape(energy_vec,(final_pos.shape[0],final_pos.shape[1]))
@@ -189,6 +199,9 @@ def simulate_dynamics(initial_pos, initial_vel, stepsize, n_steps, energy_fn):
     cause each trajectory is a symbolic function of the position.
     """
     # the following code is pretty tricky, if we do final_pos[i], then theano will consider it as another variable.
+    """
+    energy_grad: 3D matrix ([leapfrog_steps]*[samples]*[dims]), represents the d(E)/d(pos).
+    """
     energy_grad, updates_energy_grad = theano.scan(lambda i, energy,final_pos: T.grad(energy[i].sum(), final_pos)[i], sequences=T.arange(final_pos.shape[0]), non_sequences=[energy, final_pos])
     assert not updates_energy_grad
     
@@ -221,10 +234,10 @@ def hmc_move(initial_vel,positions, energy_fn, stepsize, n_steps):
 
     Returns
     -------
-    rval1: theano matrix: #_of_steps * #_of_samples. accept prob. for all the trajectories
-    rval2: theano vector: #_of_samples. For single trajectory.
-    rval3: theano 3D tensor: #_of_steps * #_of_samples * #_of_dims. final pos. for all the trajectories.
-    rval4: theano 2D matrix: #_of_samples * #_of_dims. final pos. for single trajectory. 
+    rval1: theano matrix: [#_of_steps] * [#_of_samples]. accept prob. for all the trajectories
+    rval2: theano vector: [#_of_samples]. For single trajectory.
+    rval3: theano 3D tensor: [#_of_steps] * [#_of_samples] * [#_of_dims]. final pos. for all the trajectories.
+    rval4: theano 2D matrix: [#_of_samples] * [#_of_dims]. final pos. for single trajectory. 
     """
     # end-snippet-1 start-snippet-2
     # sample random velocity
@@ -234,6 +247,12 @@ def hmc_move(initial_vel,positions, energy_fn, stepsize, n_steps):
     # perform simulation of particles subject to Hamiltonian dynamics
       
     # returned final_pos and final_vel are both 3D matrix which contain all possible trajectories from length 2 to n_steps
+    """
+    final_pos: 3D matrix ([leapfrog_steps]*[samples]*[dims], represents the final positions after doing one-step HMC with different leapfrog steps
+    final_vel: 3D matrix ([leapfrog_steps]*[samples]*[dims], represents the final momentums after doing one-step HMC with different leapfrog steps
+    final_pos1: 2D matrix ([samples]*[dims]), represents the final position after doing one-step HMC with one end leapfrog steps
+    final_vel1: 2D matrix ([samples]*[dims]), represents the final momentum after doing one-step HMC with one end leapfrog steps
+    """
     final_pos, final_vel, final_pos1, final_vel1 = simulate_dynamics(
         initial_pos=positions,
         initial_vel=initial_vel,
@@ -260,6 +279,21 @@ def hmc_move(initial_vel,positions, energy_fn, stepsize, n_steps):
     
     
     #vectorize first to compute the accept pro. and then reshape to 2D. 
+    """
+    Since the metropolis_hasting_accept() only accept the 2D matrix, so here we first reshape the final_pos and final_vel
+    to become 2D, then reshape them back to 3D. 
+    
+    final_pos_vec: 2D matrix ([leapfrog_steps*samples]*[dims])
+    final_vel_vec: 2D matrix ([leapfrog_steps*samples]*[dims])
+    initial_pos_vec: 2D matrix. ([leapfrog_steps*samples]*[dims]). previously, positions ([samples]*[dims]) is only related to
+                     one leapfrog step, so here we tile positions into [leapfrog_steps]*[1], so we get (leapfrog_steps) copies 
+                     of 2D positions matrix. 
+    initial_vel_vec: 2D matrix. ([leapfrog_steps*samples]*[dims]). previously, initial_vel ([samples]*[dims]) is only related to
+                     one leapfrog step, so here we tile initial_vel into [leapfrog_steps]*[1], so we get (leapfrog_steps) copies 
+                     of 2D initial_vel matrix. 
+    accept_vec: 1D vector([leapfrog_steps*samples]) represents the accept prob. for each sample.
+    accept: 2D matrix, ([leapfrog_steps]*[samples]).
+    """
     final_pos_vec = T.reshape(final_pos, (final_pos.shape[0]*final_pos.shape[1],final_pos.shape[2]))
     final_vel_vec = T.reshape(final_vel, (final_vel.shape[0]*final_vel.shape[1],final_vel.shape[2]))
     initial_pos_vec = T.tile(positions, [final_pos.shape[0],1])
