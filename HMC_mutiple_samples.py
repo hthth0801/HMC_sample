@@ -60,6 +60,9 @@ def test_hmc(n_sample, n_dim, mu,cov_inv,rng,seed):
     2nd:  return accept prob. associated with only end trajectory.
     3rd:  return final positions associated with all trajectories.
     4th:  return final positions associated with only end trajectory.
+    
+    accept_matrix: make 2D accept matrix to become 3D ([leapfrog_steps]*[samples]*[1]), in this way, can properly broadcast the
+                   accept prob. to each dimension of the samples.
     """
     #_,accept,_, final_pos= hmc_sampling.hmc_move(initial_vel,initial_pos, gaussian_energy, 0.1,50)
     accept,_,final_pos,_ = hmc_sampling.hmc_move(initial_vel, initial_pos, gaussian_energy, stepsizes, n_step)
