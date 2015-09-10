@@ -76,7 +76,7 @@ def metropolis_hastings_accept(energy_prev, energy_next):
         Symbolic theano vector to represent the accepance rate of each sample
     """
     ediff = energy_next - energy_prev
-    return T.nnet.sigmoid(-ediff)
+    return T.nnet.sigmoid(-ediff), -ediff
     
 def simulate_dynamics(initial_pos, initial_vel, stepsize, n_steps, energy_fn):
     """
@@ -162,6 +162,7 @@ def simulate_dynamics(initial_pos, initial_vel, stepsize, n_steps, energy_fn):
     #final_vel = all_vel[10:]
     final_pos = all_pos
     final_vel = all_vel
+    final_vel_half = all_vel
     final_pos1 = all_pos[-1]
     final_vel1 = all_vel[-1]
     assert not scan_updates
@@ -208,7 +209,7 @@ def simulate_dynamics(initial_pos, initial_vel, stepsize, n_steps, energy_fn):
     
     final_vel = final_vel - 0.5* stepsize_n_1 * energy_grad
     # return new proposal state
-    return final_pos, final_vel, final_pos1, final_vel1
+    return final_pos, final_vel, final_pos1, final_vel1, final_vel_half
     
 def hmc_move(initial_vel,positions, energy_fn, stepsize, n_steps):
     """
@@ -253,7 +254,7 @@ def hmc_move(initial_vel,positions, energy_fn, stepsize, n_steps):
     final_pos1: 2D matrix ([samples]*[dims]), represents the final position after doing one-step HMC with one end leapfrog steps
     final_vel1: 2D matrix ([samples]*[dims]), represents the final momentum after doing one-step HMC with one end leapfrog steps
     """
-    final_pos, final_vel, final_pos1, final_vel1 = simulate_dynamics(
+    final_pos, final_vel, final_pos1, final_vel1, final_vel_half = simulate_dynamics(
         initial_pos=positions,
         initial_vel=initial_vel,
         stepsize=stepsize,
@@ -263,7 +264,7 @@ def hmc_move(initial_vel,positions, energy_fn, stepsize, n_steps):
    
     # end-snippet-3 start-snippet-4
     # accept/reject the proposed move based on the joint distribution
-    accept1 = metropolis_hastings_accept(
+    accept1, ndeltaH1 = metropolis_hastings_accept(
         energy_prev=hamiltonian(positions, initial_vel, energy_fn),
         energy_next=hamiltonian(final_pos1, final_vel1, energy_fn),
     )
@@ -298,15 +299,15 @@ def hmc_move(initial_vel,positions, energy_fn, stepsize, n_steps):
     final_vel_vec = T.reshape(final_vel, (final_vel.shape[0]*final_vel.shape[1],final_vel.shape[2]))
     initial_pos_vec = T.tile(positions, [final_pos.shape[0],1])
     initial_vel_vec = T.tile(initial_vel, [final_pos.shape[0],1])
-    accept_vec = metropolis_hastings_accept(
+    accept_vec, ndeltaH_vec = metropolis_hastings_accept(
         energy_prev = hamiltonian(initial_pos_vec, initial_vel_vec, energy_fn),
         energy_next = hamiltonian(final_pos_vec, final_vel_vec, energy_fn),
     )
     accept = T.reshape(accept_vec, [final_pos.shape[0], final_pos.shape[1]])
-    
+    ndeltaH = T.reshape(ndeltaH_vec, [final_pos.shape[0], final_pos.shape[1]])
     
     # end-snippet-4
-    return  accept, accept1,final_pos, final_pos1
+    return  accept, accept1,final_pos, final_pos1, ndeltaH
 
     
 
