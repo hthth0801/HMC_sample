@@ -9,13 +9,14 @@ Created on Thu Jun 18 10:12:19 2015
 import numpy
 import theano
 import theano.tensor as T
-import hmc_sampling
+import hmc_sampling_new
+import scipy.linalg as linalg
 import scipy.optimize
 import matplotlib.pyplot as plt
 import timeit
 
 
-def test_hmc(n_sample, n_dim, mu,cov_inv,rng,seed):
+def test_hmc(n_sample, n_dim, mu,cov,cov_inv,rng,seed):
     """
     parameters:
     (maybe just input a gaussian energy function instead of mu and cov_inv)
@@ -36,15 +37,7 @@ def test_hmc(n_sample, n_dim, mu,cov_inv,rng,seed):
         return 0.5 * (T.dot((x - mu), cov_inv) *
                       (x - mu)).sum(axis=1)
     
-    """
-    dE_dtheta is used for parameter estimation which returns a jacobian matrix. For now, we ignore it, and only 
-    consider the second part.
-    """
-    #def dE_dtheta(x):
-     #   result= T.jacobian(gaussian_energy(x),theta)
-     #   return result
-        
-  
+   
     """
     initial_vel: random initial momentum
     n_step:      # of leapfrog steps
@@ -60,34 +53,42 @@ def test_hmc(n_sample, n_dim, mu,cov_inv,rng,seed):
     2nd:  return accept prob. associated with only end trajectory.
     3rd:  return final positions associated with all trajectories.
     4th:  return final positions associated with only end trajectory.
-    
-    accept_matrix: make 2D accept matrix to become 3D ([leapfrog_steps]*[samples]*[1]), in this way, can properly broadcast the
-                   accept prob. to each dimension of the samples.
+    5th:  return difference of Hamiltonian energy
     """
     #_,accept,_, final_pos= hmc_sampling.hmc_move(initial_vel,initial_pos, gaussian_energy, 0.1,50)
-    accept,_,final_pos,_ = hmc_sampling.hmc_move(initial_vel, initial_pos, gaussian_energy, stepsizes, n_step)
+    accept,_,final_pos,_,ndeltaH= hmc_sampling_new.hmc_move(initial_vel, initial_pos, gaussian_energy, stepsizes, n_step)
     accept_matrix = accept.dimshuffle(0,1, 'x')
     
     """
     define the objective function:
-    uncomment the proper one and then update the total_cost
+    uncomment the proper one and then update the total_cost1: matching the specific statistics
+    Here, we use summation instead of mean to avoid large sample fluctuation
     """
-    sampler_cost_first = T.mean(accept_matrix*(initial_pos-final_pos), axis=1)
-    #sampler_cost_second = T.mean(accept_matrix*(initial_pos**2-final_pos**2), axis=1)
-    #sampler_cost_third = T.mean(accept_matrix*(initial_pos**3-final_pos**3), axis=1)
-    #sampler_cost_sin = T.mean(accept_matrix*(T.sin(T.abs_(initial_pos))-T.sin(T.abs_(final_pos))), axis=1)
-    #sampler_cost_exp = T.mean(accept_matrix*(T.exp(initial_pos)-T.exp(final_pos)), axis=1)
-    total_cost = sampler_cost_first
+    #sampler_cost_first = accept_matrix*(initial_pos-final_pos)
+    #sampler_cost_second = accept_matrix*(initial_pos**2-final_pos**2)
+    #sampler_cost_third = accept_matrix*(initial_pos**3-final_pos**3)
+    #sampler_cost_sin = accept_matrix*(T.sin(initial_pos)-T.sin(final_pos))
+    sampler_cost_exp = accept_matrix*(T.exp(initial_pos)-T.exp(final_pos))
+    total_cost1 = sampler_cost_exp
     
     """
     1): if we average samples along all the trajectories, use the first two lines.
     2): if we penalize each sampler along the trajectories, uncomment and use the last two lines
     
     """
-    total_cost = T.mean(total_cost, axis=0)
-    total_cost = (total_cost**2).sum()
+    total_cost1 = T.mean(total_cost1, axis=0)
+    total_cost1 = T.sum(total_cost1, axis=0)
     #total_cost = (total_cost**2).sum(axis=1)
     #total_cost = T.mean(total_cost)
+    """
+    total_cost2: matching the average Hamiltonian energy, if dont consider the 
+                 average Hamiltonian energy matching, just ignore the total_cost2
+                 by deleting the correspongding part of the total_cost
+    """    
+    total_cost2 = T.mean(accept*ndeltaH, axis=0)
+    total_cost2 = T.sum(total_cost2)
+    
+    total_cost = T.mean(total_cost1**2)+total_cost2**2
     
     func_eval = theano.function([initial_vel,stepsizes,n_step], total_cost, name='func_eval', allow_input_downcast=True)
     func_grad = theano.function([initial_vel,stepsizes,n_step], T.grad(total_cost, params), name='func_grad', allow_input_downcast=True)
@@ -98,7 +99,7 @@ def test_hmc(n_sample, n_dim, mu,cov_inv,rng,seed):
     rng_stepsize = numpy.random.RandomState(353)
     random_stepsizes = numpy.array(rng_stepsize.rand(n_sample), dtype=theano.config.floatX)
     random_interval = 1.5*random_stepsizes-1
-    stepsize_baseline = 0.3
+    stepsize_baseline = 0.2
     noise_level = 2
     stepsizes0 = stepsize_baseline*noise_level**random_interval
     
@@ -119,9 +120,11 @@ def test_hmc(n_sample, n_dim, mu,cov_inv,rng,seed):
         res = func_grad(initial_v,stepsizes0,30)
         return res
     n_epoch = 5000 
+
     best_samples_params = scipy.optimize.fmin_l_bfgs_b(func = train_fn, 
                                         x0= numpy.array(rng.randn(n_sample*n_dim), dtype=theano.config.floatX),
                                         #x0 = numpy.array((1.0/cov_inv)*rng.randn(n_sample*n_dim)+mu, dtype=theano.config.floatX),
+                                        #x0 = samples_true.flatten(),
                                         fprime = train_fn_grad,
                                         maxiter = n_epoch)
     #res = best_samples_params.reshape((n_sample,n_dim))
@@ -131,22 +134,22 @@ def test_hmc(n_sample, n_dim, mu,cov_inv,rng,seed):
     """
     uncomment the proper one to print estimated value for different number of samples.
     """    
-    print "estimated mean from representative sample= ", res.mean(axis=0) 
+   # print "estimated mean from representative sample= ", res.mean(axis=0) 
    # print "true mu= ", mu   
    # print "estimated second moment from representative samples= ", (res**2).mean(axis=0)
    # print "true second moment= ", mu**2 + 1./cov_inv
    # print "estimated third moment from representative samples= ", (res**3).mean(axis=0)
-   # print "estimated sin(x) from representative samples= ", (numpy.sin(numpy.abs(res))).mean(axis=0)
-   # print "estimated exp(x) from representative samples= ", (numpy.exp(res)).mean(axis=0)    
+   # print "estimated sin(x) from representative samples= ", (numpy.sin(res)).mean(axis=0)
+    print "estimated exp(x) from representative samples= ", (numpy.exp(res)).mean(axis=0)    
   
     """
     uncomment the proper one to return estimated value for different number of samples
     """
-    return res.mean(axis=0)
+    #return res.mean(axis=0)
     #return (res**2).mean(axis=0)
     #return (res**3).mean(axis=0)
-    #return (numpy.exp(res)).mean(axis=0)
-    #return (numpy.sin(numpy.abs(res))).mean(axis=0)
+    return (numpy.exp(res)).mean(axis=0)
+    #return (numpy.sin(res)).mean(axis=0)
     
 def multiple_hmc():
     nIter = 5
@@ -168,15 +171,19 @@ def multiple_hmc():
     rng = numpy.random.RandomState(123)
     mu = numpy.array(rng.rand(n_dim)*1, dtype=theano.config.floatX)
     rng1=numpy.random.RandomState(444)
-    cov = numpy.eye(n_dim, dtype=theano.config.floatX)*rng1.rand(1)
+    cov = numpy.array(rng1.rand(n_dim,n_dim), dtype=theano.config.floatX)
+    cov = (cov+cov.T)/2.
+    cov[numpy.arange(n_dim), numpy.arange(n_dim)]=1.0*rng1.rand(1)
+    cov_inv = linalg.inv(cov)
+    #cov = numpy.eye(n_dim, dtype=theano.config.floatX)*rng1.rand(1)
     #cov = (rng1.rand(1)).astype(theano.config.floatX)
-    cov_inv = 1./(cov)
+    #cov_inv = 1./(cov)
     
     """
     get the estimated value for each sample size
     """
     start_time = timeit.default_timer()
-    y_estimated_temp = [test_hmc(n_sample, 1, mu,cov_inv,rng,n_sample) for n_sample in n_samples]
+    y_estimated_temp = [test_hmc(n_sample, n_dim, mu,cov, cov_inv,rng,n_sample) for n_sample in n_samples]
     end_time = timeit.default_timer()
     print "computing time= ",end_time-start_time
     y_estimated = numpy.array(y_estimated_temp)
@@ -186,15 +193,15 @@ def multiple_hmc():
     """
     y_independent = []
     for n_sample in n_samples:
-        independent_samples = cov*numpy.array(rng.randn(n_sample,1), dtype=theano.config.floatX)+mu
+        independent_samples = numpy.sqrt(cov)*numpy.array(rng.randn(n_sample,1), dtype=theano.config.floatX)+mu
         """
         uncomment the proper one to get the result for different matching function
         """
-        y_independent.append(independent_samples.mean(axis=0))
+        #y_independent.append(independent_samples.mean(axis=0))
         #y_independent.append((independent_samples**2).mean(axis=0))
         #y_independent.append((independent_samples**3).mean(axis=0))
-        #y_independent.append((numpy.exp(independent_samples).mean(axis=0)))
-        #y_independent.append(numpy.sin(numpy.abs(independent_samples)).mean(axis=0))
+        y_independent.append((numpy.exp(independent_samples).mean(axis=0)))
+        #y_independent.append(numpy.sin(independent_samples).mean(axis=0))
         
     y_independent = numpy.array(y_independent)
     
@@ -203,6 +210,9 @@ def multiple_hmc():
     """
     plt.subplot(2,1,1)
     plt.xscale('log')
+    #plt.yscale('log')
+   # plt.plot(n_samples, numpy.sqrt(((y_estimated-mu)**2).mean(axis=1)), color='blue', lw=2, label='rep. samples error curve.')
+   # plt.plot(n_samples, numpy.sqrt(((y_independent-mu)**2).mean(axis=1)), color='green', lw=2, label='independent error curve')
     plt.plot(n_samples, y_estimated, color='blue', lw=2, label='rep. samples with all traj.')
     plt.plot(n_samples, y_independent, color='green', lw=2, label='independent')
     plt.xlabel('number of samples')
@@ -211,15 +221,9 @@ def multiple_hmc():
     
     plt.subplot(2,1,2)
     plt.xscale('log')
-    """
-    uncomment the proper one to get the error curve
-    """
-    plt.plot(n_samples, numpy.abs(y_estimated-y_independent), color='red')
-    #plt.plot(n_samples, numpy.abs(y_estimated**2-y_independent**2), color='red')
-    #plt.plot(n_samples, numpy.abs(y_estimated**3-y_independent**3), color='red')
-    #plt.plot(n_samples, numpy.abs(numpy.exp(y_estimated)-numpy.exp(y_independent)), color='red')
-    #plt.plot(n_samples, numpy.abs(numpy.sin(numpy.abs(y_estimated))-numpy.sin(numpy.abs(y_independent))), color='red')
     
+   
+    plt.plot(n_samples, numpy.abs(y_estimated-y_independent), color='red')  
     plt.xlabel('number of samples')
     plt.ylabel('error')
     plt.show()
