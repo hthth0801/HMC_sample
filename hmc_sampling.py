@@ -297,8 +297,8 @@ def hmc_move(initial_vel,positions, energy_fn, stepsize, n_steps):
     """
     final_pos_vec = T.reshape(final_pos, (final_pos.shape[0]*final_pos.shape[1],final_pos.shape[2]))
     final_vel_vec = T.reshape(final_vel, (final_vel.shape[0]*final_vel.shape[1],final_vel.shape[2]))
-    initial_pos_vec = T.tile(positions, (n_steps,1))
-    initial_vel_vec = T.tile(initial_vel, (n_steps,1))
+    initial_pos_vec = T.tile(positions, (final_pos.shape[0],1))
+    initial_vel_vec = T.tile(initial_vel, (final_pos.shape[0],1))
     accept_vec, ndeltaH_vec = metropolis_hastings_accept(
         energy_prev = hamiltonian(initial_pos_vec, initial_vel_vec, energy_fn),
         energy_next = hamiltonian(final_pos_vec, final_vel_vec, energy_fn),

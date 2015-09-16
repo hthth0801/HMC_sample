@@ -60,18 +60,18 @@ dE_dtheta1(): returns the average or (weighted) dE/dtheta (scalar)
 """   
 def dE_dtheta1(x, acpt=None):
     if acpt == None:
-       return T.grad(T.mean(gaussian_energy(x)), theta)
+       return T.grad(T.mean(gaussian_energy(x)), theta, consider_constant=[x])
     else:
-       return T.grad(T.sum(acpt*gaussian_energy(x)), theta)
+       return T.grad(T.sum(acpt*gaussian_energy(x)), theta, consider_constant=[acpt, x])
 
 observe = T.matrix('observe')       
 initial_vel = T.matrix('initial_vel')     
-n_steps=50
-# n_step = T.iscalar('n_step')
+#n_steps=30
+n_step = T.iscalar('n_step')
 stepsizes = T.vector('stepsizes')
 
 # do HMC sampling
-[accept,accept1, final_pos_new, final_pos_new1, ndeltaH] = hmc_sampling.hmc_move(initial_vel, initial_pos, gaussian_energy, stepsizes,n_steps)
+[accept,accept1, final_pos_new, final_pos_new1, ndeltaH] = hmc_sampling.hmc_move(initial_vel, initial_pos, gaussian_energy, stepsizes,n_step)
 
 """
 reshape initial_pos, accept and final_pos_new
@@ -79,9 +79,9 @@ initial_pos : (n_sample, n_dim)----> (n_sample*n_steps, n_dim) n_steps is the nu
 accept:       (n_steps, n_samples) ----> (n_steps*n_samples, )
 final_pos_new: (n_steps, n_sample, n_dim) ---> (n_steps*n_sample, n_dim)
 """
-initial_pos_vec = T.tile(initial_pos, [n_steps,1])
+initial_pos_vec = T.tile(initial_pos, [final_pos_new.shape[0],1])
 accept_flatten = accept.flatten()
-final_pos_new_flatten = T.reshape(final_pos_new, (n_sample*n_steps,n_dim))
+final_pos_new_flatten = T.reshape(final_pos_new, (final_pos_new.shape[0]*final_pos_new.shape[1],final_pos_new.shape[2]))
 
 """
 define the sampler_cost
@@ -96,15 +96,15 @@ define the param_cost
 param_cost = dE_dtheta1(observe) - dE_dtheta1(initial_pos)
 param_cost = T.mean(param_cost**2)
 
-total_cost = param_cost + sampler_cost
+total_cost = n_sample*param_cost + sampler_cost
 
 
 """
 define the compilable function for evaluation and gradient computation.
 """    
 start_time = timeit.default_timer()
-func_eval = theano.function([observe, initial_vel,stepsizes], [total_cost, param_cost, sampler_cost], name='func_eval', allow_input_downcast=True)
-func_grad = theano.function([observe, initial_vel,stepsizes], T.grad(total_cost, params), name='func_grad', allow_input_downcast=True)
+func_eval = theano.function([observe, initial_vel,stepsizes, n_step], [total_cost, param_cost, sampler_cost], name='func_eval', allow_input_downcast=True)
+func_grad = theano.function([observe, initial_vel,stepsizes, n_step], T.grad(total_cost, params), name='func_grad', allow_input_downcast=True)
 end_time = timeit.default_timer()
 print "compiling time= ", end_time-start_time
 
@@ -151,7 +151,7 @@ initial_params = numpy.random.randn(n_sample*n_dim+n_dim)
 best_samples_params = scipy.optimize.fmin_l_bfgs_b(func = train_fn, 
                                         x0= initial_params,                                       
                                         fprime = train_fn_grad,
-                                        pgtol=1e-5,
+                                        #pgtol=1e-5,
                                         maxiter = n_epoch)
 
 print "true mu =", mu
