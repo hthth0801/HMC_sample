@@ -9,7 +9,7 @@ Created on Thu Jun 18 10:12:19 2015
 import numpy
 import theano
 import theano.tensor as T
-import hmc_sampling_new
+import hmc_sampling
 import scipy.linalg as linalg
 import scipy.optimize
 import matplotlib.pyplot as plt
@@ -56,7 +56,7 @@ def test_hmc(n_sample, n_dim, mu,cov,cov_inv,rng,seed):
     5th:  return difference of Hamiltonian energy
     """
     #_,accept,_, final_pos= hmc_sampling.hmc_move(initial_vel,initial_pos, gaussian_energy, 0.1,50)
-    accept,_,final_pos,_,ndeltaH= hmc_sampling_new.hmc_move(initial_vel, initial_pos, gaussian_energy, stepsizes, n_step)
+    accept,_,final_pos,_,ndeltaH= hmc_sampling.hmc_move(initial_vel, initial_pos, gaussian_energy, stepsizes, n_step)
     accept_matrix = accept.dimshuffle(0,1, 'x')
     
     """
