@@ -66,11 +66,12 @@ def dE_dtheta1(x, acpt=None):
 
 observe = T.matrix('observe')       
 initial_vel = T.matrix('initial_vel')     
-n_step = T.iscalar('n_step')
+n_steps=50
+# n_step = T.iscalar('n_step')
 stepsizes = T.vector('stepsizes')
 
 # do HMC sampling
-[accept,accept1, final_pos_new, final_pos_new1, ndeltaH] = hmc_sampling.hmc_move(initial_vel, initial_pos, gaussian_energy, stepsizes,n_step)
+[accept,accept1, final_pos_new, final_pos_new1, ndeltaH] = hmc_sampling.hmc_move(initial_vel, initial_pos, gaussian_energy, stepsizes,n_steps)
 
 """
 reshape initial_pos, accept and final_pos_new
@@ -78,9 +79,9 @@ initial_pos : (n_sample, n_dim)----> (n_sample*n_steps, n_dim) n_steps is the nu
 accept:       (n_steps, n_samples) ----> (n_steps*n_samples, )
 final_pos_new: (n_steps, n_sample, n_dim) ---> (n_steps*n_sample, n_dim)
 """
-initial_pos_vec = T.tile(initial_pos, [final_pos_new.shape[0],1])
+initial_pos_vec = T.tile(initial_pos, [n_steps,1])
 accept_flatten = accept.flatten()
-final_pos_new_flatten = T.reshape(final_pos_new, (final_pos_new.shape[0]*final_pos_new.shape[1],final_pos_new.shape[2]))
+final_pos_new_flatten = T.reshape(final_pos_new, (n_sample*n_steps,n_dim))
 
 """
 define the sampler_cost
@@ -102,8 +103,8 @@ total_cost = param_cost + sampler_cost
 define the compilable function for evaluation and gradient computation.
 """    
 start_time = timeit.default_timer()
-func_eval = theano.function([observe, initial_vel,stepsizes,n_step], [total_cost, param_cost, sampler_cost], name='func_eval', allow_input_downcast=True)
-func_grad = theano.function([observe, initial_vel,stepsizes,n_step], T.grad(total_cost, params), name='func_grad', allow_input_downcast=True)
+func_eval = theano.function([observe, initial_vel,stepsizes], [total_cost, param_cost, sampler_cost], name='func_eval', allow_input_downcast=True)
+func_grad = theano.function([observe, initial_vel,stepsizes], T.grad(total_cost, params), name='func_grad', allow_input_downcast=True)
 end_time = timeit.default_timer()
 print "compiling time= ", end_time-start_time
 

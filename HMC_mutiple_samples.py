@@ -227,7 +227,7 @@ def multiple_hmc():
     plt.xlabel('number of samples')
     plt.ylabel('error')
     plt.show()
-        
-      
+
+
 if __name__=="__main__":
     multiple_hmc()
