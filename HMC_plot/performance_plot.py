@@ -112,9 +112,9 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False, num_samplecounts=
             # color_current = next(color_map)
             # plt.scatter(initial_draw[:nps,0], initial_draw[:nps,1], s=2, color = color_current, alpha=0.6)
             color_current = next(color_map)
-            plt.scatter(samples_true[:nps,0], samples_true[:nps,1], s=4, marker='v', color='blue', alpha=0.6, label='Independent')
+            plt.scatter(samples_true[:nps,0], samples_true[:nps,1], s=4, marker='+', color='blue', alpha=0.6, label='Independent')
             color_current = next(color_map)
-            plt.scatter(best_samples[:nps,0], best_samples[:nps,1],s=4, marker='^', color='red', alpha=0.6, label='Characteristic' )
+            plt.scatter(best_samples[:nps,0], best_samples[:nps,1],s=4, marker='*', color='red', alpha=0.6, label='Characteristic' )
             plt.xlabel('$x_1$')
             plt.ylabel('$x_2$')
             plt.legend(loc='upper right')
@@ -137,8 +137,8 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False, num_samplecounts=
     plt.subplot(1,3,1)
     plt.xscale('log')
     for stat_name in stats_dict.keys():
-        plt.plot(n_sample_list, independent_samples[stat_name], '.', markersize=4, marker='*', alpha=0.6, label='Independent ' + stat_name)
-        plt.plot(n_sample_list, estimated_samples[stat_name], '.', markersize=4, marker='^', alpha=0.6, label='Characteristic ' + stat_name)
+        plt.plot(n_sample_list, independent_samples[stat_name], '.', markersize=4, marker='+', alpha=0.6, label='Independent ' + stat_name)
+        plt.plot(n_sample_list, estimated_samples[stat_name], '.', markersize=4, marker='*', alpha=0.6, label='Characteristic ' + stat_name)
     plt.xlabel('# samples')
     plt.ylabel('Value')
     plt.title('Target statistic')
@@ -175,6 +175,12 @@ energy = energies.gauss_2d()
 # ie stats input is [# samples]x[# data dimensions] and stats output is [# samples]x[# stats]
 
 stats = {
+    'sqr':lambda x: x**2,
+    'E':lambda x: energy.E(x).reshape((-1,1)),
+    }
+generate_plot(energy, stats)
+
+stats = {
     'mean':lambda x: x,
     }
 generate_plot(energy, stats)
@@ -186,14 +192,8 @@ generate_plot(energy, stats)
 
 stats = {
     'sqr':lambda x: x**2,
-    'E':energy.E.reshape((-1,1)),
-    }
-generate_plot(energy, stats)
-
-stats = {
-    'sqr':lambda x: x**2,
-    'E':energy.E.reshape((-1,1)),
-    'E2':energy.E.reshape((-1,1))**2,
+    'E':lambda x: energy.E(x).reshape((-1,1)),
+    'E2':lambda x: energy.E(x).reshape((-1,1))**2,
     }
 generate_plot(energy, stats)
 
@@ -204,7 +204,7 @@ generate_plot(energy, stats)
 
 stats = {
     'cube':lambda x: x**3,
-    'E':energy.E.reshape((-1,1)),
+    'E':lambda x: energy.E(x).reshape((-1,1)),
     }
 generate_plot(energy, stats)
 
