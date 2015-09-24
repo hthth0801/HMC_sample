@@ -113,7 +113,7 @@ def test_hmc_all(n_sample=1000, n_dim=2):
         """
         draw the obtained points on the contour of the previous 2D gaussian
         """     
-        params.set_value(param_new, borrow=True)
+        params.set_value(param_new.astype(theano.config.floatX), borrow=True)
         rng_temp = numpy.random.RandomState(1234)
         initial_v=numpy.array(rng_temp.randn(n_sample,n_dim), dtype=theano.config.floatX)
         res = func_eval(initial_v, stepsizes0,30)
@@ -121,7 +121,7 @@ def test_hmc_all(n_sample=1000, n_dim=2):
         return res
         
     def train_fn_grad(param_new):
-        params.set_value(param_new, borrow=True)
+        params.set_value(param_new.astype(theano.config.floatX), borrow=True)
         rng_temp = numpy.random.RandomState(1234)
         initial_v=numpy.array(rng_temp.randn(n_sample,n_dim), dtype=theano.config.floatX)
         res = func_grad(initial_v,stepsizes0,30)
@@ -166,7 +166,7 @@ def test_hmc_all(n_sample=1000, n_dim=2):
     func_final_pos =theano.function([initial_vel, stepsizes, n_step], final_pos_new, name='final_pos', allow_input_downcast=True)
     rng_temp = numpy.random.RandomState(1234)
     initial_v_final = numpy.array(rng_temp.randn(n_sample,n_dim), dtype=theano.config.floatX)
-    params.set_value(best_samples_params[0])
+    params.set_value(best_samples_params[0].astype(theano.config.floatX))
     
     pos_final = func_final_pos(initial_v_final, stepsizes0, 30)
     #next get the positions after runing sampler which has 2 steps of LF. if you set pos_final[k,:], that reprents sampler which has k+1 LF steps

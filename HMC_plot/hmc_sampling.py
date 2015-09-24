@@ -270,6 +270,10 @@ def hmc_move(initial_vel,positions, energy_fn, stepsize, n_steps):
         energy_prev = hamiltonian(initial_pos_vec, initial_vel_vec, energy_fn),
         energy_next = hamiltonian(final_pos_vec, final_vel_vec, energy_fn),
     )
+
+    # DEBUG
+    ndeltaH = energy_fn(final_pos_vec) - energy_fn(initial_pos_vec)
+
     accept = T.reshape(accept_vec, [final_pos.shape[0], final_pos.shape[1]])
     ndeltaH = T.reshape(ndeltaH_vec, [final_pos.shape[0], final_pos.shape[1]])
     

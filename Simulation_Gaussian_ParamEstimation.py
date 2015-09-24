@@ -122,17 +122,17 @@ initial_random_vel = theano.shared(numpy.zeros([n_sample,n_dim], dtype=theano.co
 set up the random momentum used in hmc sampler
 """
 initial_v = numpy.random.randn(n_sample, n_dim)
-initial_random_vel.set_value(initial_v)
+initial_random_vel.set_value(initial_v.astype(theano.config.floatX))
 
 def train_fn(param_new):
-        params.set_value(param_new, borrow=True)
+        params.set_value(param_new.astype(theano.config.floatX), borrow=True)
         initial_v = initial_random_vel.get_value()      
         res, res_param, res_sampler = func_eval(samples_true,initial_v, stepsizes0,30)       
         print "eval=", [res, res_param, res_sampler]    
         return res
         
 def train_fn_grad(param_new):
-        params.set_value(param_new, borrow=True)
+        params.set_value(param_new.astype(theano.config.floatX), borrow=True)
         initial_v = initial_random_vel.get_value()      
         res = func_grad(samples_true,initial_v,stepsizes0,30)
         return res

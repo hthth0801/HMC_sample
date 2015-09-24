@@ -107,14 +107,14 @@ def test_hmc(n_sample, n_dim, mu,cov,cov_inv,rng,seed):
     build the evaluation function and gradient function for scipy optimize
     """
     def train_fn(param_new):
-        params.set_value(param_new, borrow=True)
+        params.set_value(param_new.astype(theano.config.floatX), borrow=True)
         rng_temp = numpy.random.RandomState(seed)
         initial_v=numpy.array(rng_temp.randn(n_sample,n_dim), dtype=theano.config.floatX)
         res = func_eval(initial_v,stepsizes0,30)
         return res
         
     def train_fn_grad(param_new):
-        params.set_value(param_new, borrow=True)
+        params.set_value(param_new.astype(theano.config.floatX), borrow=True)
         rng_temp = numpy.random.RandomState(seed)
         initial_v=numpy.array(rng_temp.randn(n_sample,n_dim), dtype=theano.config.floatX)
         res = func_grad(initial_v,stepsizes0,30)
