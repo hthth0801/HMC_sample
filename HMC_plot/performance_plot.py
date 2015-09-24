@@ -39,13 +39,13 @@ Always use the same number of spaces for indentation (4 spaces for indent level 
 
 
 
-def generate_plot(energy, stats_dict, ndim=2, true_init=False, num_samplecounts=20, max_samplecount=500):
+def generate_plot(energy, stats_dict, ndim=2, true_init=False, num_samplecounts=25, max_samplecount=50000):
     # TODO break each subplot into its own function.
 
     rng = np.random.RandomState(1234)
 
 
-    plt.figure(figsize=(12,5))
+    plt.figure(figsize=(13,5))
     plt.subplot(1,3,3)
 
     """
@@ -109,11 +109,7 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False, num_samplecounts=
         if n_sample==n_sample_list[-1]:
             nps = 100
             initial_draw = initial_params
-            # color_current = next(color_map)
-            # plt.scatter(initial_draw[:nps,0], initial_draw[:nps,1], s=2, color = color_current, alpha=0.6)
-            color_current = next(color_map)
             plt.scatter(samples_true[:nps,0], samples_true[:nps,1], s=4, marker='+', color='blue', alpha=0.6, label='Independent')
-            color_current = next(color_map)
             plt.scatter(best_samples[:nps,0], best_samples[:nps,1],s=4, marker='*', color='red', alpha=0.6, label='Characteristic' )
             plt.xlabel('$x_1$')
             plt.ylabel('$x_2$')
@@ -137,8 +133,9 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False, num_samplecounts=
     plt.subplot(1,3,1)
     plt.xscale('log')
     for stat_name in stats_dict.keys():
-        plt.plot(n_sample_list, independent_samples[stat_name], '.', markersize=4, marker='+', alpha=0.6, label='Independent ' + stat_name)
-        plt.plot(n_sample_list, estimated_samples[stat_name], '.', markersize=4, marker='*', alpha=0.6, label='Characteristic ' + stat_name)
+        color_current = next(color_map)
+        plt.plot(n_sample_list, independent_samples[stat_name], '.', markersize=4, marker='+', alpha=0.6, label='Independent ' + stat_name, color = color_current)
+        plt.plot(n_sample_list, estimated_samples[stat_name], '.', markersize=4, marker='*', alpha=0.6, label='Characteristic ' + stat_name, color = color_current)
     plt.xlabel('# samples')
     plt.ylabel('Value')
     plt.title('Target statistic')
@@ -178,20 +175,20 @@ stats = {
     'mean':lambda x: x,
     }
 generate_plot(energy, stats)
-generate_plot(energy, stats, true_init=True)
+#generate_plot(energy, stats, true_init=True)
 
 stats = {
     'sqr':lambda x: x**2,
     }
 generate_plot(energy, stats)
-generate_plot(energy, stats, true_init=True)
+#generate_plot(energy, stats, true_init=True)
 
 stats = {
     'sqr':lambda x: x**2,
     'E':lambda x: energy.E(x).reshape((-1,1)),
     }
 generate_plot(energy, stats)
-generate_plot(energy, stats, true_init=True)
+#generate_plot(energy, stats, true_init=True)
 
 stats = {
     'sqr':lambda x: x**2,
@@ -202,30 +199,44 @@ generate_plot(energy, stats)
 generate_plot(energy, stats, true_init=True)
 
 stats = {
-    'cube':lambda x: x**3,
-    }
-generate_plot(energy, stats)
-generate_plot(energy, stats, true_init=True)
-
-stats = {
     'margcube':lambda x: T.mean(x**3, axis=1).reshape((-1,1)),
     }
 generate_plot(energy, stats)
-generate_plot(energy, stats, true_init=True)
+#generate_plot(energy, stats, true_init=True)
 
 stats = {
     'margcube':lambda x: T.mean(x**3, axis=1).reshape((-1,1)),
     'E':lambda x: energy.E(x).reshape((-1,1)),
     }
 generate_plot(energy, stats)
-generate_plot(energy, stats, true_init=True)
+#generate_plot(energy, stats, true_init=True)
+
+stats = {
+    'cube':lambda x: x**3,
+    }
+generate_plot(energy, stats)
+#generate_plot(energy, stats, true_init=True)
 
 stats = {
     'cube':lambda x: x**3,
     'E':lambda x: energy.E(x).reshape((-1,1)),
     }
 generate_plot(energy, stats)
-generate_plot(energy, stats, true_init=True)
+#generate_plot(energy, stats, true_init=True)
+
+stats = {
+    'sin':lambda x: T.sin(x),
+    }
+generate_plot(energy, stats)
+#generate_plot(energy, stats, true_init=True)
+
+stats = {
+    'sin':lambda x: T.sin(x),
+    'E':lambda x: energy.E(x).reshape((-1,1)),
+    'E2':lambda x: energy.E(x).reshape((-1,1))**2,
+    }
+generate_plot(energy, stats)
+#generate_plot(energy, stats, true_init=True)
 
 
 

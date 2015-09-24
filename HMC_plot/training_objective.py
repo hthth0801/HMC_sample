@@ -80,5 +80,9 @@ class training_objective:
         df = 0.
         f+=f1
         df+=df1.flatten()
+
+        # DEBUG
+        df = df.astype(float)
+
         return f, df
        
