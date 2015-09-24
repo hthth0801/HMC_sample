@@ -99,7 +99,9 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False, num_samplecounts=
         best_samples_list = scipy.optimize.fmin_l_bfgs_b(objective.f_df_wrapper, 
                                     initial_params_flat,
                                     args = args_hyper,
-                                    maxfun=200, disp=1)
+                                    maxfun=200,
+                                    # disp=1,
+                                    )
         best_samples = best_samples_list[0].reshape(n_sample, n_dim)
         
         train_objective.append(best_samples_list[1])
