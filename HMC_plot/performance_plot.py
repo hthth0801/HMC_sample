@@ -39,7 +39,7 @@ Always use the same number of spaces for indentation (4 spaces for indent level 
 
 
 
-def generate_plot(energy, stats_dict, ndim=2, true_init=False, num_samplecounts=25, max_samplecount=1000):
+def generate_plot(energy, stats_dict, ndim=2, true_init=False, num_samplecounts=20, max_samplecount=500):
     # TODO break each subplot into its own function.
 
     rng = np.random.RandomState(1234)
@@ -57,7 +57,7 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False, num_samplecounts=
     mesh_X, mesh_Y = np.meshgrid(gaussian_x, gaussian_y)
     mesh_xy = np.concatenate((mesh_X.reshape((-1,1)), mesh_Y.reshape((-1,1))), axis=1)
     x = T.matrix()
-    E_func = theano.function([x], energy.E(x))
+    E_func = theano.function([x], energy.E(x), allow_input_downcast=True)
     mesh_Z = E_func(mesh_xy).reshape(mesh_X.shape)
     gaussian_Contour =plt.contour(mesh_X,mesh_Y, mesh_Z, 14, alpha=0.3)
     color_map = iter(['b','r', 'k', 'g', 'c', 'm', 'y'])
@@ -142,7 +142,7 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False, num_samplecounts=
     plt.xlabel('# samples')
     plt.ylabel('Value')
     plt.title('Target statistic')
-    plt.legend(loc='upper right')
+    plt.legend(loc='upper left')
     #plt.legend(bbox_to_anchor=(0.,1.02, 1.,.102),loc=3,ncol=1,mode='expand', borderaxespad=0.)
            
     true_values = estimated_samples[-1]
@@ -175,20 +175,23 @@ energy = energies.gauss_2d()
 # ie stats input is [# samples]x[# data dimensions] and stats output is [# samples]x[# stats]
 
 stats = {
+    'mean':lambda x: x,
+    }
+generate_plot(energy, stats)
+generate_plot(energy, stats, true_init=True)
+
+stats = {
+    'sqr':lambda x: x**2,
+    }
+generate_plot(energy, stats)
+generate_plot(energy, stats, true_init=True)
+
+stats = {
     'sqr':lambda x: x**2,
     'E':lambda x: energy.E(x).reshape((-1,1)),
     }
 generate_plot(energy, stats)
-
-stats = {
-    'mean':lambda x: x,
-    }
-generate_plot(energy, stats)
-
-stats = {
-    'sqr':lambda x: x**2,
-    }
-generate_plot(energy, stats)
+generate_plot(energy, stats, true_init=True)
 
 stats = {
     'sqr':lambda x: x**2,
@@ -196,18 +199,33 @@ stats = {
     'E2':lambda x: energy.E(x).reshape((-1,1))**2,
     }
 generate_plot(energy, stats)
+generate_plot(energy, stats, true_init=True)
 
 stats = {
     'cube':lambda x: x**3,
     }
 generate_plot(energy, stats)
+generate_plot(energy, stats, true_init=True)
+
+stats = {
+    'margcube':lambda x: T.mean(x**3, axis=1).reshape((-1,1)),
+    }
+generate_plot(energy, stats)
+generate_plot(energy, stats, true_init=True)
+
+stats = {
+    'margcube':lambda x: T.mean(x**3, axis=1).reshape((-1,1)),
+    'E':lambda x: energy.E(x).reshape((-1,1)),
+    }
+generate_plot(energy, stats)
+generate_plot(energy, stats, true_init=True)
 
 stats = {
     'cube':lambda x: x**3,
     'E':lambda x: energy.E(x).reshape((-1,1)),
     }
 generate_plot(energy, stats)
-
-
 generate_plot(energy, stats, true_init=True)
+
+
 

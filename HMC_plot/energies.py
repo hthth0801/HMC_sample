@@ -15,7 +15,7 @@ class gauss_2d:
 		self.name = 'gaussian_2d'
 
 	def E(self, X):
-		return T.sum( T.dot((X-self.mu), self.cov_inv) * (X-self.mu), axis=1)
+		return T.sum( T.dot((X-self.mu), self.cov_inv) * (X-self.mu), axis=1)/2.
 
 	def generate_samples(self, n_sample):
 		samples_sd_normal = rng.normal(size=(n_sample, 2)).astype(theano.config.floatX)
