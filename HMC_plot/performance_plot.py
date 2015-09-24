@@ -39,14 +39,14 @@ Always use the same number of spaces for indentation (4 spaces for indent level 
 
 
 
-def generate_plot(energy, stats_dict, ndim=2, true_init=False, num_samplecounts=25, max_samplecount=500):
+def generate_plot(energy, stats_dict, ndim=2, true_init=False, num_samplecounts=25, max_samplecount=1000):
     # TODO break each subplot into its own function.
 
     rng = np.random.RandomState(1234)
 
 
-    plt.figure(figsize=(11,7))
-    plt.subplot(1,3,1)
+    plt.figure(figsize=(12,5))
+    plt.subplot(1,3,3)
 
     """
     draw the 2D contour
@@ -58,7 +58,7 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False, num_samplecounts=
     mesh_xy = np.concatenate((mesh_X.reshape((-1,1)), mesh_Y.reshape((-1,1))), axis=1)
     x = T.matrix()
     E_func = theano.function([x], energy.E(x))
-    mesh_Z = np.log(E_func(mesh_xy)).reshape(mesh_X.shape)
+    mesh_Z = E_func(mesh_xy).reshape(mesh_X.shape)
     gaussian_Contour =plt.contour(mesh_X,mesh_Y, mesh_Z, 14, alpha=0.3)
     color_map = iter(['b','r', 'k', 'g', 'c', 'm', 'y'])
         
@@ -161,7 +161,7 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False, num_samplecounts=
     #plt.subplot(3,1,3)
     plt.tight_layout()
     plt.show() 
-    plt_name = energy.name + '-' + ''.join(str(elem) for elem in stats_dict.keys()) 
+    plt_name = energy.name + '-' + '_'.join(str(elem) for elem in stats_dict.keys()) 
     if true_init:
        plt_name += "_true-init"
     plt_name += '.pdf'
@@ -171,62 +171,43 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False, num_samplecounts=
 
 energy = energies.gauss_2d()
         
+# stats can be multidimensional, in which case the different stats should lie along the second dimension
+# ie stats input is [# samples]x[# data dimensions] and stats output is [# samples]x[# stats]
 
 stats = {
     'mean':lambda x: x,
-    # 'E':energy.E,
-    # 'E2':lambda x: energy.E(x)**2
     }
 generate_plot(energy, stats)
+
+stats = {
+    'sqr':lambda x: x**2,
+    }
+generate_plot(energy, stats)
+
+stats = {
+    'sqr':lambda x: x**2,
+    'E':energy.E.reshape((-1,1)),
+    }
+generate_plot(energy, stats)
+
+stats = {
+    'sqr':lambda x: x**2,
+    'E':energy.E.reshape((-1,1)),
+    'E2':energy.E.reshape((-1,1))**2,
+    }
+generate_plot(energy, stats)
+
+stats = {
+    'cube':lambda x: x**3,
+    }
+generate_plot(energy, stats)
+
+stats = {
+    'cube':lambda x: x**3,
+    'E':energy.E.reshape((-1,1)),
+    }
+generate_plot(energy, stats)
+
+
 generate_plot(energy, stats, true_init=True)
 
-
-
-# it finds a bad solution in some cases
-# (specific bad solution it finds depends on initialization)
-# (if initialize with true samples, just stays there -- so it's a problem with their being a non-unique global minimum)
-args_stats = ['second']
-generate_plot('gaussian',mu, cov, args_stats)
-# if we constrain the average energy, it helps a lot
-# could also help to constrain higher moments of the energy
-args_stats = ['second', 'H']
-generate_plot('gaussian',mu, cov, args_stats)
-# sometimes it also gets stuck in local minima
-# this should get better with higher dimensional problems
-args_stats = ['exp', 'H']
-generate_plot('gaussian',mu, cov, args_stats)
-
-
-
-# works well in the simplest case
-args_stats = ['first']
-generate_plot('gaussian',mu, cov, args_stats)
-
-
-args_stats = ['exp']
-generate_plot('gaussian',mu, cov, args_stats)
-args_stats = ['exp']
-generate_plot('gaussian',mu, cov, args_stats, true_init=True)
-
-
-
-
-args_stats = ['sin']
-generate_plot('gaussian',mu, cov, args_stats)
-args_stats = ['sin', 'H']
-generate_plot('gaussian',mu, cov, args_stats)
-
-args_stats = ['third']
-generate_plot('gaussian',mu, cov, args_stats)
-args_stats = ['third', 'H']
-generate_plot('gaussian',mu, cov, args_stats)
-
-
-start_time = timeit.default_timer()
-# generate_plot('gaussian',mu, cov, args_stats)
-end_time = timeit.default_timer()
-print "running time= ", end_time-start_time
-
-        
-        
-        

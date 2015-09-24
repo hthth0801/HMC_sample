@@ -17,20 +17,21 @@ def theano_f_df(energy, stats_dict):
     initial_vel = T.matrix('initial_vel')
    
     # do one-step HMC sampling
-    [accept,accept1, final_pos, final_pos1, ndeltaH] = HMC.hmc_move(initial_vel, initial_pos, energy, stepsizes,n_step)
+    [accept, initial_pos_vec, final_pos_vec, ndeltaH] = HMC.hmc_move(initial_vel, initial_pos, energy, stepsizes,n_step)
 
     # DEBUG
     accept = accept / T.mean(accept)
 
     sampler_cost = 0.
-    accept_matrix = accept.dimshuffle(0,1, 'x')
+    accept_matrix = accept.dimshuffle(0,'x')
     for stat in stats_dict.itervalues():
-        weighted_difference = T.mean(accept_matrix*(stat(initial_pos) - stat(final_pos)))
-        sampler_cost = sampler_cost + weighted_difference**2
+        difference = stat(initial_pos_vec) - stat(final_pos_vec)
+        weighted_difference = T.mean(accept_matrix*difference, axis=0)
+        sampler_cost = sampler_cost + T.sum(weighted_difference**2)
 
     # we want the gradient per-sample to stay large -- so scale by the number of samples!
     # this is # initial conditions * #steps
-    sampler_cost *= T.prod(accept_matrix.shape)
+    sampler_cost *= accept_matrix.shape[0]
 
     total_cost = sampler_cost   
     costs = [total_cost]
