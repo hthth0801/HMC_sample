@@ -71,6 +71,8 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False, num_samplecounts=
     estimated_samples = defaultdict(list)
     independent_samples=defaultdict(list)
     train_objective = []
+    # compile the training objective
+    objective = training_objective.training_objective(energy, stats_dict)
     for n_sample in n_sample_list:
         print "processing sample = ", n_sample
         n_dim=2
@@ -94,11 +96,10 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False, num_samplecounts=
         """
         n_steps = 100
         args_hyper = [initial_v, stepsizes0, n_steps, n_sample,2]
-        objective = training_objective.training_objective(energy, stats_dict)
         best_samples_list = scipy.optimize.fmin_l_bfgs_b(objective.f_df_wrapper, 
                                     initial_params_flat,
                                     args = args_hyper,
-                                    maxfun=200)
+                                    maxfun=200, disp=1)
         best_samples = best_samples_list[0].reshape(n_sample, n_dim)
         
         train_objective.append(best_samples_list[1])
