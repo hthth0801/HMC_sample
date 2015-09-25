@@ -39,13 +39,13 @@ Always use the same number of spaces for indentation (4 spaces for indent level 
 
 
 
-def generate_plot(energy, stats_dict, ndim=2, true_init=False, num_samplecounts=25, max_samplecount=50000):
+def generate_plot(energy, stats_dict, ndim=2, true_init=False, num_samplecounts=25, max_samplecount=20000, n_steps=25):
     # TODO break each subplot into its own function.
 
     rng = np.random.RandomState(1234)
 
 
-    plt.figure(figsize=(13,5))
+    plt.figure(figsize=(14,5))
     plt.subplot(1,3,3)
 
     """
@@ -94,7 +94,6 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False, num_samplecounts=
         """
         args_hyper is the set of hyperparameters: initial momentum, stepsizes, number of samplers, n_sample and n_dim
         """
-        n_steps = 100
         args_hyper = [initial_v, stepsizes0, n_steps, n_sample,2]
         best_samples_list = scipy.optimize.fmin_l_bfgs_b(objective.f_df_wrapper, 
                                     initial_params_flat,
@@ -122,9 +121,11 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False, num_samplecounts=
         
         for stat_name in stats_dict.keys():
             xx = T.fmatrix()
-            yy = stats_dict[stat_name](xx)
+            yy = stats_dict[stat_name](xx, T.ones_like(xx)/xx.shape[0].astype(theano.config.floatX))
             stat_func = theano.function([xx], yy, allow_input_downcast=True)
 
+            # mean here is over dimensions of stats output, NOT over samples
+            # mean over samples is taken internally in the stat
             estimated_samples[stat_name].append(np.mean(stat_func(best_samples)))
             independent_samples[stat_name].append(np.mean(stat_func(samples_true)))
 
@@ -164,82 +165,95 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False, num_samplecounts=
     plt_name = energy.name + '-' + '_'.join(str(elem) for elem in stats_dict.keys()) 
     if true_init:
        plt_name += "_true-init"
-    plt_name += '.pdf'
+    plt_name += '_v3.pdf'
     plt.savefig(plt_name)
     plt.close()
         
 
 energy = energies.gauss_2d()
         
+# each stats function takes an input with [# samples]x[# data dimensions], and produces an output which is 
+# [# stats]
+
 # stats can be multidimensional, in which case the different stats should lie along the second dimension
 # ie stats input is [# samples]x[# data dimensions] and stats output is [# samples]x[# stats]
 
-stats = {
-    'mean':lambda x: x,
-    }
-generate_plot(energy, stats)
-#generate_plot(energy, stats, true_init=True)
+
 
 stats = {
-    'sqr':lambda x: x**2,
+    'mean':lambda x, w: T.sum(w*x, axis=0),
     }
 generate_plot(energy, stats)
-#generate_plot(energy, stats, true_init=True)
 
 stats = {
-    'sqr':lambda x: x**2,
-    'E':lambda x: energy.E(x).reshape((-1,1)),
+    'sqr':lambda x, w: T.sum(w*x**2, axis=0),
+    'E':lambda x, w: T.sum(w*energy.E(x).reshape((-1,1))),
+    'E2':lambda x, w: T.sum(w*energy.E(x).reshape((-1,1))**2)**(1./2.),
+    'E3':lambda x, w: T.sum(w*abs(energy.E(x)).reshape((-1,1))**3)**(1./3.),
+    'E4':lambda x, w: T.sum(w*energy.E(x).reshape((-1,1))**4)**(1./4.),
     }
 generate_plot(energy, stats)
-#generate_plot(energy, stats, true_init=True)
 
 stats = {
-    'sqr':lambda x: x**2,
-    'E':lambda x: energy.E(x).reshape((-1,1)),
-    'E2':lambda x: energy.E(x).reshape((-1,1))**2,
+    'sqr':lambda x, w: T.sum(w*x**2, axis=0),
+    'E':lambda x, w: T.sum(w*energy.E(x).reshape((-1,1))),
+    'E2':lambda x, w: T.sum(w*energy.E(x).reshape((-1,1))**2)**(1./2.),
+    'E3':lambda x, w: T.sum(w*abs(energy.E(x)).reshape((-1,1))**3)**(1./3.),
     }
 generate_plot(energy, stats)
-generate_plot(energy, stats, true_init=True)
 
 stats = {
-    'margcube':lambda x: T.mean(x**3, axis=1).reshape((-1,1)),
+    'sqr':lambda x, w: T.sum(w*x**2, axis=0),
+    'E':lambda x, w: T.sum(w*energy.E(x).reshape((-1,1))),
+    'E2':lambda x, w: T.sum(w*energy.E(x).reshape((-1,1))**2)**(1./2.),
     }
 generate_plot(energy, stats)
-#generate_plot(energy, stats, true_init=True)
 
 stats = {
-    'margcube':lambda x: T.mean(x**3, axis=1).reshape((-1,1)),
-    'E':lambda x: energy.E(x).reshape((-1,1)),
+    'sqr':lambda x, w: T.sum(w*x**2, axis=0),
+    'E':lambda x, w: T.sum(w*energy.E(x).reshape((-1,1))),
     }
 generate_plot(energy, stats)
-#generate_plot(energy, stats, true_init=True)
 
 stats = {
-    'cube':lambda x: x**3,
+    'sqr':lambda x, w: T.sum(w*x**2, axis=0),
     }
 generate_plot(energy, stats)
-#generate_plot(energy, stats, true_init=True)
+
 
 stats = {
-    'cube':lambda x: x**3,
-    'E':lambda x: energy.E(x).reshape((-1,1)),
+    'margcube':lambda x, w: T.sum(w*T.mean(x**3, axis=1).reshape((-1,1))),
     }
 generate_plot(energy, stats)
-#generate_plot(energy, stats, true_init=True)
 
 stats = {
-    'sin':lambda x: T.sin(x),
+    'margcube':lambda x, w: T.sum(w*T.mean(x**3, axis=1).reshape((-1,1))),
+    'E':lambda x, w: T.sum(w*energy.E(x).reshape((-1,1))),
     }
 generate_plot(energy, stats)
-#generate_plot(energy, stats, true_init=True)
 
 stats = {
-    'sin':lambda x: T.sin(x),
-    'E':lambda x: energy.E(x).reshape((-1,1)),
-    'E2':lambda x: energy.E(x).reshape((-1,1))**2,
+    'margcube':lambda x, w: T.sum(w*T.mean(x**3, axis=1).reshape((-1,1))),
+    'E':lambda x, w: T.sum(w*energy.E(x).reshape((-1,1))),
+    'E2':lambda x, w: T.sum(w*energy.E(x).reshape((-1,1))**2)**(1./2.),
     }
 generate_plot(energy, stats)
-#generate_plot(energy, stats, true_init=True)
 
 
+stats = {
+    'exp':lambda x, w: T.sum(w*T.exp(x), axis=0),
+    'E':lambda x, w: T.sum(w*energy.E(x).reshape((-1,1))),
+    'E2':lambda x, w: T.sum(w*energy.E(x).reshape((-1,1))**2)**(1./2.),
+    }
+generate_plot(energy, stats)
 
+stats = {
+    'exp':lambda x, w: T.sum(w*T.exp(x), axis=0),
+    'E':lambda x, w: T.sum(w*energy.E(x).reshape((-1,1))),
+    }
+generate_plot(energy, stats)
+
+stats = {
+    'exp':lambda x, w: T.sum(w*T.exp(x), axis=0),
+    }
+generate_plot(energy, stats)

@@ -19,19 +19,26 @@ def theano_f_df(energy, stats_dict):
     # do one-step HMC sampling
     [accept, initial_pos_vec, final_pos_vec, ndeltaH] = HMC.hmc_move(initial_vel, initial_pos, energy, stepsizes,n_step)
 
-    # DEBUG
-    accept = accept / T.mean(accept)
+    # # DEBUG
+    # accept = accept / T.mean(accept)
+    nsamp = accept.shape[0].astype(theano.config.floatX)
 
     sampler_cost = 0.
     accept_matrix = accept.dimshuffle(0,'x')
     for stat in stats_dict.itervalues():
-        difference = stat(initial_pos_vec) - stat(final_pos_vec)
-        weighted_difference = T.mean(accept_matrix*difference, axis=0)
-        sampler_cost = sampler_cost + T.sum(weighted_difference**2)
+        initial_stat = stat(initial_pos_vec, T.ones_like(accept_matrix)/nsamp)
+        final_stat = stat(
+            T.concatenate((initial_pos_vec, final_pos_vec), axis=0),
+            T.concatenate((T.ones_like(accept_matrix)-accept_matrix, accept_matrix), axis=0)/nsamp,
+            )
+        sampler_cost = sampler_cost + T.sum((final_stat - initial_stat)**2)
+        # difference = stat(initial_pos_vec) - stat(final_pos_vec)
+        # weighted_difference = T.mean(accept_matrix*difference, axis=0)
+        # sampler_cost = sampler_cost + T.sum(weighted_difference**2)
 
     # we want the gradient per-sample to stay large -- so scale by the number of samples!
     # this is # initial conditions * #steps
-    sampler_cost *= accept_matrix.shape[0]
+    sampler_cost *= nsamp
 
     total_cost = sampler_cost   
     costs = [total_cost]
