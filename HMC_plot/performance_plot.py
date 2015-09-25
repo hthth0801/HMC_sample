@@ -14,6 +14,7 @@ import theano
 import theano.tensor as T
 
 from collections import defaultdict
+import itertools
 
 import energies
 import training_objective
@@ -42,14 +43,17 @@ Always use the same number of spaces for indentation (4 spaces for indent level 
 def generate_plot(energy, stats_dict, ndim=2, true_init=False,
     num_samplecounts=25, max_samplecount=20000,
     # num_samplecounts=10, max_samplecount=50,
-    n_steps=25):
+    n_steps=100,
+    # n_steps=10,
+    ):
     # TODO break each subplot into its own function.
 
-    rng = np.random.RandomState(1234)
+    rng = np.random.RandomState(12)
 
 
-    plt.figure(figsize=(17,5))
-    plt.subplot(1,3,3)
+    plt.figure(figsize=(17,17))
+#    plt.figure(figsize=(10,7))
+    plt.subplot(2,2,3)
 
     """
     draw the 2D contour
@@ -62,14 +66,19 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False,
     x = T.matrix()
     E_func = theano.function([x], energy.E(x), allow_input_downcast=True)
     mesh_Z = E_func(mesh_xy).reshape(mesh_X.shape)
+
+    plt.subplot(2,2,4)
     gaussian_Contour =plt.contour(mesh_X,mesh_Y, mesh_Z, 14, alpha=0.3)
-    color_map = iter(['b','r', 'k', 'g', 'c', 'm', 'y'])
+    plt.subplot(2,2,3)
+    gaussian_Contour =plt.contour(mesh_X,mesh_Y, mesh_Z, 14, alpha=0.3)
+
+    color_map = itertools.cycle(['b','r', 'k', 'g', 'c', 'm', 'y'])
         
     
     """
     set up x_axis, i.e., number of samples
     """
-    n_sample_list = np.exp(np.linspace(0, np.log(max_samplecount), num_samplecounts))
+    n_sample_list = np.exp(np.linspace(np.log(20), np.log(max_samplecount), num_samplecounts)).astype(int)
 
     estimated_samples = defaultdict(list)
     independent_samples=defaultdict(list)
@@ -77,11 +86,12 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False,
     # compile the training objective
     objective = training_objective.training_objective(energy, stats_dict)
     for n_sample in n_sample_list:
-        print "processing sample = ", n_sample
+        # print "processing sample = ", n_sample
         n_dim=2
         random_stepsizes = rng.rand(n_sample)
         random_interval = 1.5*random_stepsizes-1
         stepsize_baseline = 0.2
+        # stepsize_baseline = 0.1
         noise_level = 2
         stepsizes0 = stepsize_baseline*noise_level**random_interval 
        
@@ -91,7 +101,6 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False,
         initial_params = rng.randn(n_sample, n_dim)
         # initial_params = rng3.uniform(size=(n_sample, n_dim))*10. - 5.
         if true_init:
-           print "initializing at true samples"
            initial_params = samples_true.copy()
         initial_params_flat = initial_params.flatten()
         """
@@ -104,6 +113,25 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False,
                                     maxfun=200,
                                     # disp=1,
                                     )
+
+
+        # DEBUG again, with new velocity and step sizes
+        for iii in range(0): #10): # DEBUG
+            initial_v = rng.randn(n_sample, n_dim)
+            random_stepsizes = rng.rand(n_sample)
+            random_interval = 1.5*random_stepsizes-1
+            stepsize_baseline = 0.2
+            noise_level = 2
+            stepsizes0 = stepsize_baseline*noise_level**random_interval 
+            args_hyper = [initial_v, stepsizes0, n_steps, n_sample,2]
+            best_samples_list = scipy.optimize.fmin_l_bfgs_b(objective.f_df_wrapper, 
+                                    best_samples_list[0],
+                                    args = args_hyper,
+                                    maxfun=200,
+                                    disp=1,
+                                    )
+
+
         best_samples = best_samples_list[0].reshape(n_sample, n_dim)
         
         train_objective.append(best_samples_list[1])
@@ -114,15 +142,34 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False,
         if n_sample==n_sample_list[-1]:
             nps = 100
             initial_draw = initial_params
-            plt.scatter(samples_true[:nps,0], samples_true[:nps,1], s=4, marker='+', color='blue', alpha=0.6, label='Independent')
-            plt.scatter(best_samples[:nps,0], best_samples[:nps,1],s=4, marker='*', color='red', alpha=0.6, label='Characteristic' )
+            plt.subplot(2,2,3)
+            plt.scatter(samples_true[:nps,0], samples_true[:nps,1], s=10, marker='+', color='blue', alpha=0.6, label='Independent')
+            plt.scatter(best_samples[:nps,0], best_samples[:nps,1],s=10, marker='*', color='red', alpha=0.6, label='Characteristic' )
             plt.xlabel('$x_1$')
             plt.ylabel('$x_2$')
             plt.legend(loc='upper right')
             plt.title('Samples')
 
+            initial_pos_vec, final_pos_vec, final_pos = objective.f_samples(best_samples, *args_hyper[:3])
+            plt.subplot(2,2,4)
+            for traj_i in range(4):
+                color_current = next(color_map)
+                plt.plot(final_pos[:,traj_i,0], final_pos[:,traj_i,1], markersize=10, marker='x', label='trajectory %d'%traj_i, color = color_current)
+                # add the starting point
+                plt.plot(final_pos[0,traj_i,0], final_pos[0,traj_i,1], markersize=10, marker='o', label='trajectory %d'%traj_i, color = 'black')
+            plt.title('Example HMC trajectories')
+     
+            # tmp = np.concatenate((initial_pos_vec, final_pos_vec), axis=1)
+            # tmp = tmp.reshape((n_steps-1, int(n_sample), 4))
+            # tmp = np.transpose(tmp, [1,0,2])
+            # tmp = tmp.reshape(-1, 4)
+            # plt.figure()
+            # plt.imshow(tmp[:150], interpolation='nearest', aspect='auto')
+            # # plt.colorbar()
+            # plt.savefig('delme.pdf')
+            # plt.close()
         
-        for stat_name in stats_dict.keys():
+        for stat_name in sorted(stats_dict.keys()):
             xx = T.fmatrix()
             yy = stats_dict[stat_name](xx, T.ones_like(xx)/xx.shape[0].astype(theano.config.floatX))
             stat_func = theano.function([xx], yy, allow_input_downcast=True)
@@ -132,27 +179,33 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False,
             estimated_samples[stat_name].append(np.mean(stat_func(best_samples)))
             independent_samples[stat_name].append(np.mean(stat_func(samples_true)))
 
-    for stat_name in stats_dict.keys():
+    for stat_name in sorted(stats_dict.keys()):
         estimated_samples[stat_name] = np.asarray(estimated_samples[stat_name])
         independent_samples[stat_name] = np.asarray(independent_samples[stat_name])
     train_objective = np.asarray(train_objective)
 
-    plt.subplot(1,3,1)
+    if true_init:
+        print "true init, ",
+
+    plt.subplot(2,2,1)
     plt.xscale('log')
     plt.yscale('log')
-    for stat_name in stats_dict.keys():
+    for stat_name in sorted(stats_dict.keys()):
         color_current = next(color_map)
-        plt.plot(n_sample_list, independent_samples[stat_name], '.', markersize=4, marker='+', alpha=0.6, label='Independent ' + stat_name, color = color_current)
-        plt.plot(n_sample_list, estimated_samples[stat_name], '.', markersize=4, marker='*', alpha=0.6, label='Characteristic ' + stat_name, color = color_current)
+        plt.plot(n_sample_list, independent_samples[stat_name], '.', markersize=12, marker='+', label='Independent ' + stat_name, color = color_current)
+        plt.plot(n_sample_list, estimated_samples[stat_name], '.', markersize=12, marker='o', label='Characteristic ' + stat_name, color = color_current)
+        print "%s char %g ind %g, "%(stat_name, estimated_samples[stat_name][-1], independent_samples[stat_name][-1]),
+    print
     plt.xlabel('# samples')
     plt.ylabel('Value')
     plt.title('Target statistic')
     plt.legend(loc='upper left')
+    #plt.ylim([0,4]) # TODO don't hardcode this
     #plt.legend(bbox_to_anchor=(0.,1.02, 1.,.102),loc=3,ncol=1,mode='expand', borderaxespad=0.)
            
     true_values = estimated_samples[-1]
 
-    plt.subplot(1,3,2)
+    plt.subplot(2,2,2)
     plt.xscale('log') 
     plt.yscale('log')
     # plt.plot(n_sample_list, ((estimated_samples-true_values)**2), color='red', label='true')  
@@ -166,7 +219,7 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False,
     #plt.subplot(3,1,3)
     plt.tight_layout()
     plt.show() 
-    plt_name = energy.name + '-' + '_'.join(str(elem) for elem in stats_dict.keys()) 
+    plt_name = 'long_' + energy.name + '-' + '_'.join(str(elem) for elem in sorted(stats_dict.keys())) 
     if true_init:
        plt_name += "_true-init"
     plt_name += '.pdf'
@@ -201,22 +254,98 @@ base_stats = {
     'margcube':lambda x: T.mean(x**3, axis=1).reshape((-1,1)),
 }
 
+
+
+
+
+
 for base_stat_name in base_stats:
     # basic dictionary for this stat
     stat_dict = {}
     stat_dict[base_stat_name] = lambda x, w: T.sum(
         w*base_stats[base_stat_name](x),
         axis=0)
-
     # single stat plot
     generate_plot(energy, stat_dict)
+    generate_plot(energy, stat_dict, true_init=True)
+
+    ## TODO try regularizing with gradient of stat
+    # stat_dict = {}
+    # stat_dict[base_stat_name] = lambda x, w: T.sum(
+    #     w*base_stats[base_stat_name](x),
+    #     axis=0)
+    # stat_grad = lambda x: theano.gradient.jacobian()
+    # stat_dict[base_stat_name+'_grad'] = lambda x, w: T.sum(
+    #     w*base_stats[base_stat_name](x),
+    #     axis=0)
+
+
+    ## try regularizing in terms of energy moments around the mean
+    stat_dict = {}
+    stat_dict[base_stat_name] = lambda x, w: T.sum(
+        w*base_stats[base_stat_name](x),
+        axis=0)
+    E_mn = lambda x, w: T.sum(
+            w*energy.E(x).reshape((-1,1))
+            )
+    stat_dict['zEmn'] = E_mn
+    generate_plot(energy, stat_dict)
+    generate_plot(energy, stat_dict, true_init=True)
+    # second order
+    stat_dict['zEsd'] = lambda x, w: T.sum(
+            w*(energy.E(x) - E_mn(x, w)).reshape((-1,1))**2
+            )**(1./2.)
+    generate_plot(energy, stat_dict)
+    generate_plot(energy, stat_dict, true_init=True)
+
+
+    ## try regularizing in terms of target statistic moments around the mean
+    stat_dict = {}
+    stat_mn = lambda x, w: T.sum(
+        w*base_stats[base_stat_name](x),
+        axis=0)
+    stat_dict[base_stat_name] = stat_mn
+    stat_dict[base_stat_name + '_2nd'] = lambda x, w: T.sum(
+        w*(base_stats[base_stat_name](x) - stat_mn(x, w))**2,
+        axis=0)**(1./2.)
+    generate_plot(energy, stat_dict)
+    generate_plot(energy, stat_dict, true_init=True)
+
+
+    ## try regularizing with both at once
+    stat_dict = {}
+    stat_mn = lambda x, w: T.sum(
+        w*base_stats[base_stat_name](x),
+        axis=0)
+    stat_dict[base_stat_name] = stat_mn
+    stat_dict[base_stat_name + '_2nd'] = lambda x, w: T.sum(
+        w*(base_stats[base_stat_name](x) - stat_mn(x, w))**2,
+        axis=0)**(1./2.)
+    generate_plot(energy, stat_dict)
+    generate_plot(energy, stat_dict, true_init=True)
+    E_mn = lambda x, w: T.sum(
+            w*energy.E(x).reshape((-1,1))
+            )
+    stat_dict['zEmn'] = E_mn
+    generate_plot(energy, stat_dict)
+    generate_plot(energy, stat_dict, true_init=True)
+    # second order
+    stat_dict['zEsd'] = lambda x, w: T.sum(
+            w*(energy.E(x) - E_mn(x, w)).reshape((-1,1))**2
+            )**(1./2.)
+    generate_plot(energy, stat_dict)
+    generate_plot(energy, stat_dict, true_init=True)
+
+
+if False:
 
     ## try regularizing by adding stats to match norms of the energy function
     for E_order in range(1,5):
-        stat_dict['E%d'%E_order] = lambda x, w: T.sum(
+        stat_dict['zE%d'%E_order] = lambda x, w: T.sum(
             w*abs(energy.E(x)).reshape((-1,1))**E_order
             )**(1./E_order)
         generate_plot(energy, stat_dict)
+        generate_plot(energy, stat_dict, true_init=True)
 
     ## try regularizing by comparing against perturbations of the same stat
     # basic dictionary for this stat
@@ -224,13 +353,14 @@ for base_stat_name in base_stats:
     stat_dict[base_stat_name] = lambda x, w: T.sum(w*base_stats[base_stat_name](x), axis=0)
     p_mag = 1.2 # magnitude of perturbations to stat
     # add stat perturbed slightly larger
-    stat_dict['per up'] = lambda x, w: T.sum(
+    stat_dict['zper up'] = lambda x, w: T.sum(
         w*abs(base_stats[base_stat_name](x))**p_mag,
         axis=0
         )**(1./p_mag)
     # add stat perturbed slightly smaller
-    stat_dict['per down'] = lambda x, w: T.sum(
+    stat_dict['zper down'] = lambda x, w: T.sum(
         w*abs(base_stats[base_stat_name](x))**(1./p_mag),
         axis=0
         )**p_mag
     generate_plot(energy, stat_dict)
+    generate_plot(energy, stat_dict, true_init=True)

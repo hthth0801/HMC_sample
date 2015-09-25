@@ -278,7 +278,7 @@ def hmc_move(initial_vel,positions, energy_fn, stepsize, n_steps):
     ndeltaH = T.reshape(ndeltaH_vec, [final_pos.shape[0], final_pos.shape[1]])
     
     # end-snippet-4
-    return  accept_vec, initial_pos_vec, final_pos_vec, ndeltaH_vec
+    return  accept_vec, initial_pos_vec, final_pos_vec, ndeltaH_vec, final_pos
 #    return  accept, accept1,final_pos, final_pos1, ndeltaH
     #final_vel1,final_vel_half
     #ndeltaH_vec, ndeltaH1
