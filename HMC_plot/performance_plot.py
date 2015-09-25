@@ -39,13 +39,16 @@ Always use the same number of spaces for indentation (4 spaces for indent level 
 
 
 
-def generate_plot(energy, stats_dict, ndim=2, true_init=False, num_samplecounts=25, max_samplecount=20000, n_steps=25):
+def generate_plot(energy, stats_dict, ndim=2, true_init=False,
+    num_samplecounts=25, max_samplecount=20000,
+    # num_samplecounts=10, max_samplecount=50,
+    n_steps=25):
     # TODO break each subplot into its own function.
 
     rng = np.random.RandomState(1234)
 
 
-    plt.figure(figsize=(14,5))
+    plt.figure(figsize=(17,5))
     plt.subplot(1,3,3)
 
     """
@@ -136,6 +139,7 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False, num_samplecounts=
 
     plt.subplot(1,3,1)
     plt.xscale('log')
+    plt.yscale('log')
     for stat_name in stats_dict.keys():
         color_current = next(color_map)
         plt.plot(n_sample_list, independent_samples[stat_name], '.', markersize=4, marker='+', alpha=0.6, label='Independent ' + stat_name, color = color_current)
@@ -165,7 +169,7 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False, num_samplecounts=
     plt_name = energy.name + '-' + '_'.join(str(elem) for elem in stats_dict.keys()) 
     if true_init:
        plt_name += "_true-init"
-    plt_name += '_v3.pdf'
+    plt_name += '.pdf'
     plt.savefig(plt_name)
     plt.close()
         
@@ -180,80 +184,53 @@ energy = energies.gauss_2d()
 
 
 
-stats = {
-    'mean':lambda x, w: T.sum(w*x, axis=0),
-    }
-generate_plot(energy, stats)
-
-stats = {
-    'sqr':lambda x, w: T.sum(w*x**2, axis=0),
-    'E':lambda x, w: T.sum(w*energy.E(x).reshape((-1,1))),
-    'E2':lambda x, w: T.sum(w*energy.E(x).reshape((-1,1))**2)**(1./2.),
-    'E3':lambda x, w: T.sum(w*abs(energy.E(x)).reshape((-1,1))**3)**(1./3.),
-    'E4':lambda x, w: T.sum(w*energy.E(x).reshape((-1,1))**4)**(1./4.),
-    }
-generate_plot(energy, stats)
-
-stats = {
-    'sqr':lambda x, w: T.sum(w*x**2, axis=0),
-    'E':lambda x, w: T.sum(w*energy.E(x).reshape((-1,1))),
-    'E2':lambda x, w: T.sum(w*energy.E(x).reshape((-1,1))**2)**(1./2.),
-    'E3':lambda x, w: T.sum(w*abs(energy.E(x)).reshape((-1,1))**3)**(1./3.),
-    }
-generate_plot(energy, stats)
-
-stats = {
-    'sqr':lambda x, w: T.sum(w*x**2, axis=0),
-    'E':lambda x, w: T.sum(w*energy.E(x).reshape((-1,1))),
-    'E2':lambda x, w: T.sum(w*energy.E(x).reshape((-1,1))**2)**(1./2.),
-    }
-generate_plot(energy, stats)
-
-stats = {
-    'sqr':lambda x, w: T.sum(w*x**2, axis=0),
-    'E':lambda x, w: T.sum(w*energy.E(x).reshape((-1,1))),
-    }
-generate_plot(energy, stats)
-
-stats = {
-    'sqr':lambda x, w: T.sum(w*x**2, axis=0),
-    }
-generate_plot(energy, stats)
+# ## this is the simple way to set a couple stats and run with them:
+# stats = {
+#     'mean':lambda x, w: T.sum(w*x, axis=0),
+#     'E':lambda x, w: T.sum(w*energy.E(x).reshape((-1,1))),
+#     }
+# generate_plot(energy, stats)
 
 
-stats = {
-    'margcube':lambda x, w: T.sum(w*T.mean(x**3, axis=1).reshape((-1,1))),
-    }
-generate_plot(energy, stats)
+base_stats = {
+    'mean': lambda x: x,
+    'sqr': lambda x: x**2,
+    'exp': lambda x: T.exp(x),
+    'sin': lambda x: T.sin(x),
+    'cube':lambda x: x**3,
+    'margcube':lambda x: T.mean(x**3, axis=1).reshape((-1,1)),
+}
 
-stats = {
-    'margcube':lambda x, w: T.sum(w*T.mean(x**3, axis=1).reshape((-1,1))),
-    'E':lambda x, w: T.sum(w*energy.E(x).reshape((-1,1))),
-    }
-generate_plot(energy, stats)
+for base_stat_name in base_stats:
+    # basic dictionary for this stat
+    stat_dict = {}
+    stat_dict[base_stat_name] = lambda x, w: T.sum(
+        w*base_stats[base_stat_name](x),
+        axis=0)
 
-stats = {
-    'margcube':lambda x, w: T.sum(w*T.mean(x**3, axis=1).reshape((-1,1))),
-    'E':lambda x, w: T.sum(w*energy.E(x).reshape((-1,1))),
-    'E2':lambda x, w: T.sum(w*energy.E(x).reshape((-1,1))**2)**(1./2.),
-    }
-generate_plot(energy, stats)
+    # single stat plot
+    generate_plot(energy, stat_dict)
 
+    ## try regularizing by adding stats to match norms of the energy function
+    for E_order in range(1,5):
+        stat_dict['E%d'%E_order] = lambda x, w: T.sum(
+            w*abs(energy.E(x)).reshape((-1,1))**E_order
+            )**(1./E_order)
+        generate_plot(energy, stat_dict)
 
-stats = {
-    'exp':lambda x, w: T.sum(w*T.exp(x), axis=0),
-    'E':lambda x, w: T.sum(w*energy.E(x).reshape((-1,1))),
-    'E2':lambda x, w: T.sum(w*energy.E(x).reshape((-1,1))**2)**(1./2.),
-    }
-generate_plot(energy, stats)
-
-stats = {
-    'exp':lambda x, w: T.sum(w*T.exp(x), axis=0),
-    'E':lambda x, w: T.sum(w*energy.E(x).reshape((-1,1))),
-    }
-generate_plot(energy, stats)
-
-stats = {
-    'exp':lambda x, w: T.sum(w*T.exp(x), axis=0),
-    }
-generate_plot(energy, stats)
+    ## try regularizing by comparing against perturbations of the same stat
+    # basic dictionary for this stat
+    stat_dict = {}
+    stat_dict[base_stat_name] = lambda x, w: T.sum(w*base_stats[base_stat_name](x), axis=0)
+    p_mag = 1.2 # magnitude of perturbations to stat
+    # add stat perturbed slightly larger
+    stat_dict['per up'] = lambda x, w: T.sum(
+        w*abs(base_stats[base_stat_name](x))**p_mag,
+        axis=0
+        )**(1./p_mag)
+    # add stat perturbed slightly smaller
+    stat_dict['per down'] = lambda x, w: T.sum(
+        w*abs(base_stats[base_stat_name](x))**(1./p_mag),
+        axis=0
+        )**p_mag
+    generate_plot(energy, stat_dict)

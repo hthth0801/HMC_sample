@@ -282,6 +282,3 @@ def hmc_move(initial_vel,positions, energy_fn, stepsize, n_steps):
 #    return  accept, accept1,final_pos, final_pos1, ndeltaH
     #final_vel1,final_vel_half
     #ndeltaH_vec, ndeltaH1
-
-    
-
