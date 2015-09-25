@@ -32,7 +32,7 @@ Really bad is when special cases have to be handled separately in multiple locat
 examples in the code included:
 - the various if statements evaluating strings listing the different target statistics to include
 - that constraining the Hamiltonian was a special case, which could only occur in the second position, and had to be correctly handled in all locations
-- that the Gaussian energy function was defined using two different functions (numpy and theano) that were in two widely separated regions of code. Much better to have a single implementation. If that was impossible though, the multiple implementations should be clustered together.
+- that the Gaussian energy function was implemented by two different functions (numpy and theano) that were in two widely separated regions of code. Much better to have a single implementation. If that was impossible though, the multiple implementations should be clustered together.
 Don't give different variables the same name. One specific example was gaussian_2D, and gaussian_2d (this was even worse, because it was *almost* but not quite the same name)
 Imports should all go at the top of the file, to make dependencies clear.
 Always use the same number of spaces for indentation (4 spaces for indent level is good). I **strongly** recommend using an editor that does this for you. Sublime Text is a very popular and powerful recent one.
