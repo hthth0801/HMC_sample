@@ -192,8 +192,8 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False,
     plt.yscale('log')
     for stat_name in sorted(stats_dict.keys()):
         color_current = next(color_map)
-        plt.plot(n_sample_list, independent_samples[stat_name], '.', markersize=12, marker='+', label='Independent ' + stat_name, color = color_current)
         plt.plot(n_sample_list, estimated_samples[stat_name], '.', markersize=12, marker='o', label='Characteristic ' + stat_name, color = color_current)
+        plt.plot(n_sample_list, independent_samples[stat_name], '.', markersize=12, marker='+', label='Independent ' + stat_name, color = color_current)
         print "%s char %g ind %g, "%(stat_name, estimated_samples[stat_name][-1], independent_samples[stat_name][-1]),
     print
     plt.xlabel('# samples')
