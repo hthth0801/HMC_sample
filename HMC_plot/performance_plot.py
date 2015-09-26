@@ -157,6 +157,8 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False,
                 plt.plot(final_pos[:,traj_i,0], final_pos[:,traj_i,1], markersize=10, marker='x', label='trajectory %d'%traj_i, color = color_current)
                 # add the starting point
                 plt.plot(final_pos[0,traj_i,0], final_pos[0,traj_i,1], markersize=10, marker='o', label='trajectory %d'%traj_i, color = 'black')
+            plt.xlabel('$x_1$')
+            plt.ylabel('$x_2$')
             plt.title('Example HMC trajectories')
      
             # tmp = np.concatenate((initial_pos_vec, final_pos_vec), axis=1)
