@@ -323,14 +323,10 @@ for base_stat_name in base_stats:
     stat_dict[base_stat_name + '_2nd'] = lambda x, w: T.sum(
         w*(base_stats[base_stat_name](x) - stat_mn(x, w))**2,
         axis=0)**(1./2.)
-    generate_plot(energy, stat_dict)
-    generate_plot(energy, stat_dict, true_init=True)
     E_mn = lambda x, w: T.sum(
             w*energy.E(x).reshape((-1,1))
             )
     stat_dict['zEmn'] = E_mn
-    generate_plot(energy, stat_dict)
-    generate_plot(energy, stat_dict, true_init=True)
     # second order
     stat_dict['zEsd'] = lambda x, w: T.sum(
             w*(energy.E(x) - E_mn(x, w)).reshape((-1,1))**2
