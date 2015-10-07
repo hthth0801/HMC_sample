@@ -64,7 +64,7 @@ class training_objective:
         print "compiling time = ", end_time-start_time
         #For now, consider we only have training data, but not the training labels.
         start_time = timeit.default_timer()
-        self.training_X = data_dict[data_name]()
+        self.training_X = data_dict[data_name](5,100000)
         end_time = timeit.default_timer()
         print "loading van hateren time = ", end_time-start_time
         self.mini_batches=[]
@@ -108,12 +108,14 @@ class training_objective:
         """
         params_original = []
         params_original.append(params[:(n_sample*n_dim)].reshape(n_sample, n_dim)) # for representative samples
-        params_original.append(params[(n_sample*n_dim+1):].reshape(n_dim, n_dim)) # for parameters
+        params_original.append(params[(n_sample*n_dim):].reshape(n_dim, n_dim)) # for parameters
         #params_original = params.reshape(n_sample, n_dim)
         f1, df1 = self.f_df(params_original, training_X, *args[1:])
         f = 0.
         df = 0.
         f += (f1[0] + f1[1])
+        print "param_cost=", f1[0]
+        print "sampler_cost=", f1[1]
         # df1 is the list, so need to convert it to flat representation
         """
         list to flat, use the handy func from SFO
