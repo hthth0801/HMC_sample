@@ -23,10 +23,10 @@ objective = training_objective.training_objective(ica_soft, 'van_hateren', 100)
 """
 preparing the initial parameters for the algorithms
 """
-#train_x = objective.training_X
-#mini_batches_x = objective.mini_batches
+train_x = objective.training_X
+mini_batches_x = objective.mini_batches
 
-n_steps = 50 
+n_steps = 100 
 n_dim = 10 * 10
 n_sample = 100
 random_stepsizes = rng.rand(n_sample)
@@ -39,16 +39,23 @@ stepsizes0 = stepsize_baseline*noise_level**random_interval
 initial_v = rng.randn(n_sample, n_dim)
 
 initial_params = rng.randn(n_sample+n_dim, n_dim)
+"""
+If we wanna start the representative with the random subset of training images
+uncomment the following three lines
+"""
+#initial_true_idx = np.random.choice(range(train_x.shape[0]),n_sample, replace=False)
+#initial_true = train_x[initial_true_idx]
+#initial_params[:n_sample] = initial_true
 initial_params[n_sample:] = initial_params[n_sample:] / np.sqrt(n_dim)
 initial_params_flat = initial_params.flatten()
 args_hyper = [initial_v, stepsizes0, n_steps, n_sample, n_dim]
 
 def visualize(best_params, best_samples, alg_name, tile_shape_sample, filter_shape=(10,10), tile_shape_J = (10,10), spacing = (1,1)):
     J = best_params
-    J_inv = linalg.inv(J) 
+    J_inv = linalg.pinv(J) 
     n_sample = best_samples.shape[0]
     save_name = '-' + 'nsamples' + str(n_sample) + '-'+ alg_name + '.png'
-    receptive_field = utils.tile_raster_images(J, filter_shape,tile_shape_J, spacing)
+    receptive_field = utils.tile_raster_images(J.T, filter_shape,tile_shape_J, spacing)
     image_rf = Image.fromarray(receptive_field)
     rf_name = 'J' + save_name
     image_rf.save(rf_name)     
@@ -74,6 +81,8 @@ def LBFGS(objective, initial_params, args_hyper):
     optimal_params = best_samples_list[0]
     best_samples = optimal_params[:(n_sample*n_dim)].reshape(n_sample, n_dim)
     J = optimal_params[(n_sample*n_dim):].reshape(n_dim, n_dim)
+    W_X = objective.W_X
+    J = np.dot(W_X, J)
     visualize(J, best_samples, 'lbfgs', (50, int(n_sample/50)))
     
 def SGD(objective, initial_params, args_hyper):
@@ -96,6 +105,8 @@ def SGD(objective, initial_params, args_hyper):
     optimal_params = params_i
     best_samples = optimal_params[:(n_sample*n_dim)].reshape(n_sample, n_dim)
     J = optimal_params[(n_sample*n_dim):].reshape(n_dim, n_dim)
+    W_X = objective.W_X
+    J = np.dot(W_X, J)
     visualize(J, best_samples, 'sgd', (50, int(n_sample/50)))
 
 def SGD_MOMENTUM(objective, initial_params, args_hyper):
@@ -128,6 +139,8 @@ def SGD_MOMENTUM(objective, initial_params, args_hyper):
     optimal_params = params_i
     best_samples = optimal_params[:(n_sample*n_dim)].reshape(n_sample, n_dim)
     J = optimal_params[(n_sample*n_dim):].reshape(n_dim, n_dim)
+    W_X = objective.W_X
+    J = np.dot(W_X, J)
     visualize(J, best_samples, 'sgd_momentum', (50, int(n_sample/50)))
     
     
@@ -135,10 +148,10 @@ def SGD_MOMENTUM(objective, initial_params, args_hyper):
     
     
 LBFGS( objective,initial_params_flat, args_hyper )   
-SGD(objective,initial_params_flat, args_hyper )
-SGD_MOMENTUM(objective,initial_params_flat, args_hyper)
+#SGD(objective,initial_params_flat, args_hyper )
+#SGD_MOMENTUM(objective,initial_params_flat, args_hyper)
 """
-visualize the some of the training samples
+visualize the some of the training samples (after whitening)
 """
 train_x_sub = objective.training_X[:100, ]
 train_x_show = utils.tile_raster_images(train_x_sub, (10,10),(10,10), (1,1))
