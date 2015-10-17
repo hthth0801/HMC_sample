@@ -7,7 +7,7 @@ load various datasets
 
 import numpy as np
 import array
-import pylab
+#import pylab
 from os.path import join, isfile
 from os import listdir
 
@@ -84,11 +84,11 @@ def PCA_ZCA_whiten_transform(X, symmetric = True):
     else:
         EigVal[EigVal <= tol] = 1.
         P = EigVal.reshape((-1,1)) * (EigVec.T)
-    X = np.dot(X, P)
-    return X        
+    X = np.dot(X, P.T)
+    return X, P.T      
           
     
-def load_van_hateren(n_imgs=5, n_patches=200, patch_x=10, patch_y=10):
+def load_van_hateren(n_imgs=5, n_patches=100000, patch_x=10, patch_y=10):
     """
     first get raw patches, then do the necessary preprocessing
     """
@@ -99,8 +99,8 @@ def load_van_hateren(n_imgs=5, n_patches=200, patch_x=10, patch_y=10):
     # do preprocessing (log-tranformation and centering)
     patches = log_center_transform(patches)
     # do PCA elimination to get rid of the degenerated dimensions
-    patches = PCA_ZCA_whiten_transform(patches)
-    return patches
+    patches, W_X = PCA_ZCA_whiten_transform(patches, False)
+    return patches, W_X
     
         
 """      
