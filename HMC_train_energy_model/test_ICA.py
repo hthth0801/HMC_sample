@@ -16,7 +16,7 @@ import scipy.linalg as linalg
 rng = np.random.RandomState(123)
 
 ica_soft = ICA_soft_laplace()
-objective = training_objective.training_objective(ica_soft, 'van_hateren', 1)
+objective = training_objective.training_objective(ica_soft, 'pixel_sparse', 1)
 
 """
 preparing the initial parameters for the algorithms
@@ -24,7 +24,8 @@ preparing the initial parameters for the algorithms
 train_x = objective.training_X
 
 n_steps = 50 
-n_dim = 10 * 10
+imwidth = 4
+n_dim = imwidth**2
 n_sample = 1000
 random_stepsizes = rng.rand(n_sample)
 random_interval = 1.5*random_stepsizes-1
@@ -53,17 +54,17 @@ optimal_param = best_samples_list[0]
 best_samples = optimal_param[:(n_sample*n_dim)].reshape(n_sample, n_dim)
 J = optimal_param[(n_sample*n_dim):].reshape(n_dim, n_dim)
 J_inv = linalg.inv(J)
-receptive_field = utils.tile_raster_images(J, (10,10),(10,10), (1,1))
+receptive_field = utils.tile_raster_images(J, (imwidth,imwidth),(10,10), (1,1))
 image = Image.fromarray(receptive_field)
 image.save('J_patches100000_step50_nsample1000.png')     
-receptive_field_inv = utils.tile_raster_images(J_inv, (10,10),(10,10), (1,1))
+receptive_field_inv = utils.tile_raster_images(J_inv, (imwidth,imwidth),(10,10), (1,1))
 image1 = Image.fromarray(receptive_field_inv)   
 image1.save('J-inv_patches100000_step50_nsample1000.png')     
-samples_vis = utils.tile_raster_images(best_samples, (10,10),(50,20), (1,1))  
+samples_vis = utils.tile_raster_images(best_samples, (imwidth,imwidth),(50,20), (1,1))  
 samples_vis_image = Image.fromarray(samples_vis)
 samples_vis_image.save('representative samples.png')
 train_x_sub = train_x[:100, ]
-train_x_show = utils.tile_raster_images(train_x_sub, (10,10),(10,10), (1,1))
+train_x_show = utils.tile_raster_images(train_x_sub, (imwidth,imwidth),(10,10), (1,1))
 image_train = Image.fromarray(train_x_show)
 image_train.save('training_samples.png')
           

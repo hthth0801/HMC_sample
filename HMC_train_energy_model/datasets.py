@@ -101,7 +101,18 @@ def load_van_hateren(n_imgs=5, n_patches=100000, patch_x=10, patch_y=10):
     # do PCA elimination to get rid of the degenerated dimensions
     patches, W_X = PCA_ZCA_whiten_transform(patches, False)
     return patches, W_X
-    
+
+def load_pixel_sparse(n_imgs=5, n_patches=100000, patch_x=4, patch_y=4):
+    """
+    Generate pixel-sparse training data.
+    """
+    n = np.random.randn(n_patches, patch_x*patch_y)
+    patches_unnorm = n**3
+    patches = patches_unnorm / np.std(patches_unnorm)
+    W_X = np.eye(patch_x*patch_y)
+    # DEBUG why is this different from what's expected of load_van_hateren
+    #return patches, W_X
+    return patches
         
 """      
 patches = load_van_hateren()

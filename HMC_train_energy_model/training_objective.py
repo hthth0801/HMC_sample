@@ -8,14 +8,15 @@ import theano
 import theano.tensor as T
 import hmc_sampling as HMC
 import numpy as np
-from datasets import load_van_hateren
+from datasets import load_van_hateren, load_pixel_sparse
 import timeit
 """
 dataset is the dictory. e.g., {'mnist': load_mnist, 'van_hateren': load_van_hateren}
 The key is the name of the dataset, the value is the loading function, all necessary pre-processing are defined there. 
 """
 data_dict = {
-             'van_hateren': load_van_hateren,
+            # 'van_hateren': load_van_hateren,
+             'pixel_sparse': load_pixel_sparse,
             # 'mnist': load_mnist
             # 'gaussian_2d': load_gaussian_2d
              }
