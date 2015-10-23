@@ -106,9 +106,10 @@ def load_pixel_sparse(n_imgs=5, n_patches=100000, patch_x=4, patch_y=4):
     """
     Generate pixel-sparse training data.
     """
-    n = np.random.randn(n_patches, patch_x*patch_y)
-    patches_unnorm = n**3
-    patches = patches_unnorm / np.std(patches_unnorm)
+    #n = np.random.randn(n_patches, patch_x*patch_y)
+    #patches_unnorm = n**3
+    #patches = patches_unnorm / np.std(patches_unnorm)
+    patches = np.random.laplace(size=(n_patches, patch_x*patch_y))
     W_X = np.eye(patch_x*patch_y)
     # DEBUG why is this different from what's expected of load_van_hateren
     #return patches, W_X

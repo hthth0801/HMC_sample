@@ -35,14 +35,18 @@ class gauss_2d:
 	
     
 class ICA_soft_laplace:
-    def __init__(self):
+    def __init__(self, weight_scale=32):
+        """
+        weight_scale acts like the natural gradient. should set it to be the square root of the number of samples.
+        """
         # theta here is the receptive field J:[n_dim]* [n_expert], for ica, J is a square matrix
         self.theta = T.matrix('theta')
         self.epsilon_np  = np.array(0.1, dtype = theano.config.floatX)
         self.epsilon = theano.shared(self.epsilon_np)
         self.name = 'ICA_soft_laplace'
+        self.weight_scale = theano.shared(np.array(weight_scale, dtype=theano.config.floatX))
     def E(self, X):
-        XJ = T.dot(X, self.theta) # [n_sample]*[n_expert]
+        XJ = T.dot(X, self.theta/self.weight_scale) # [n3_sample]*[n_expert]
         XJ2_ep = self.epsilon + XJ**2
         return T.sum(T.sqrt(XJ2_ep), axis=1)
     def dE_dtheta(self, X, acpt=None):
@@ -50,18 +54,3 @@ class ICA_soft_laplace:
             return T.grad(T.mean(self.E(X)), self.theta, consider_constant=[X])
         else:
             return T.grad(T.sum(acpt*self.E(X)), self.theta, consider_constant=[X, acpt])
-    
-    
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-  

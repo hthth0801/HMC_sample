@@ -33,10 +33,14 @@ stepsize_baseline = 0.2
         # stepsize_baseline = 0.1
 noise_level = 2
 stepsizes0 = stepsize_baseline*noise_level**random_interval 
+
+# DEBUG
+train_x = train_x[:n_sample]
        
 initial_v = rng.randn(n_sample, n_dim)
 
 initial_params = rng.randn(n_sample+n_dim, n_dim)
+initial_params[n_sample:] = initial_params[n_sample:] / np.sqrt(n_dim) * np.sqrt(n_sample)
 initial_params_flat = initial_params.flatten()
 
 #params_original = []
@@ -47,7 +51,7 @@ best_samples_list = scipy.optimize.fmin_l_bfgs_b(objective.f_df_wrapper,
                                     initial_params_flat,
                                     args = args_hyper,
                                     maxfun=1000,
-                                    # disp=1,
+                                    #disp=1,
                                     )
                                     
 optimal_param = best_samples_list[0]
@@ -55,17 +59,15 @@ best_samples = optimal_param[:(n_sample*n_dim)].reshape(n_sample, n_dim)
 J = optimal_param[(n_sample*n_dim):].reshape(n_dim, n_dim)
 J_inv = linalg.inv(J)
 receptive_field = utils.tile_raster_images(J, (imwidth,imwidth),(10,10), (1,1))
-image = Image.fromarray(receptive_field)
+image = Image.fromarray(receptive_field).resize((imwidth*10*8, imwidth*10*8))
 image.save('J_patches100000_step50_nsample1000.png')     
 receptive_field_inv = utils.tile_raster_images(J_inv, (imwidth,imwidth),(10,10), (1,1))
-image1 = Image.fromarray(receptive_field_inv)   
+image1 = Image.fromarray(receptive_field_inv).resize((imwidth*10*8, imwidth*10*8))
 image1.save('J-inv_patches100000_step50_nsample1000.png')     
-samples_vis = utils.tile_raster_images(best_samples, (imwidth,imwidth),(50,20), (1,1))  
-samples_vis_image = Image.fromarray(samples_vis)
+samples_vis = utils.tile_raster_images(best_samples, (imwidth,imwidth),(10,10), (1,1))  
+samples_vis_image = Image.fromarray(samples_vis).resize((imwidth*10*8, imwidth*10*8))
 samples_vis_image.save('representative samples.png')
 train_x_sub = train_x[:100, ]
 train_x_show = utils.tile_raster_images(train_x_sub, (imwidth,imwidth),(10,10), (1,1))
-image_train = Image.fromarray(train_x_show)
+image_train = Image.fromarray(train_x_show).resize((imwidth*10*8, imwidth*10*8))
 image_train.save('training_samples.png')
-          
-                 

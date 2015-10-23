@@ -36,14 +36,19 @@ def theano_funcs(theta,energy, dE_dtheta):
     # get sampler_cost
     sampler_cost = dE_dtheta(initial_pos_vec, accept_flatten) - dE_dtheta(final_pos_vec, accept_flatten)
     #sampler_cost = dE_dtheta(initial_pos_vec, accept_flatten)
-    sampler_cost = 1./(final_pos.shape[0]) * sampler_cost
-    sampler_cost = T.mean(sampler_cost**2)
+    #sampler_cost = 1./(final_pos.shape[0]) * sampler_cost
+    sampler_cost = 1./(final_pos_vec.shape[0]) * sampler_cost
+    sampler_cost = T.sum(sampler_cost**2)
     # get param_cost
     param_cost = dE_dtheta(training) - dE_dtheta(initial_pos)
-    param_cost = T.mean(param_cost**2)
-        
+    param_cost = T.sum(param_cost**2)
+
+    # DEBUG counteract scaling of theta
+    sampler_cost = sampler_cost * training.shape[0]
+    param_cost   = param_cost * training.shape[0]
+
     total_cost = param_cost + sampler_cost
-    costs = [param_cost, sampler_cost]
+    costs = [total_cost, param_cost, sampler_cost]
     gparams = []
     for param in params:
         gparam = T.grad(total_cost, param)
@@ -92,7 +97,7 @@ class training_objective:
         rval 1: param_cost and sampler_cost (list)
         rval 2: grad_sampler and grad_param (list)
         """
-        return results[:2], results[2:]
+        return results[:3], results[3:]
         
     def f_df_wrapper(self, params, *args):
         #input is the flattened version of params
@@ -114,9 +119,13 @@ class training_objective:
         f1, df1 = self.f_df(params_original, training_X, *args[1:])
         f = 0.
         df = 0.
-        f += (f1[0] + f1[1])
-        print "param_cost=", f1[0]
-        print "sampler_cost=", f1[1]
+        f += f1[0]
+        print "total_cost=%g param_cost=%g sampler_cost=%g rms_samp=%g rms_J=%g rms_dsamp=%g rms_dJ=%g"%(
+            f1[0], f1[1], f1[2],
+            np.sqrt(np.mean(params_original[0]**2)),
+            np.sqrt(np.mean(params_original[1]**2)),
+            np.sqrt(np.mean(df1[0]**2)),
+            np.sqrt(np.mean(df1[1]**2)))
         # df1 is the list, so need to convert it to flat representation
         """
         list to flat, use the handy func from SFO
