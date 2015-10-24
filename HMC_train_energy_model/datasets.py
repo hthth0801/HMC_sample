@@ -110,6 +110,7 @@ def load_pixel_sparse(n_imgs=5, n_patches=100000, patch_x=4, patch_y=4):
     #patches_unnorm = n**3
     #patches = patches_unnorm / np.std(patches_unnorm)
     patches = np.random.laplace(size=(n_patches, patch_x*patch_y))
+    #patches = np.random.standard_cauchy(size=(n_patches, patch_x*patch_y))
     W_X = np.eye(patch_x*patch_y)
     # DEBUG why is this different from what's expected of load_van_hateren
     #return patches, W_X

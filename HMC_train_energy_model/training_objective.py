@@ -48,13 +48,13 @@ def theano_funcs(theta,energy, dE_dtheta):
     param_cost   = param_cost * training.shape[0]
 
     total_cost = param_cost + sampler_cost
-    costs = [total_cost, param_cost, sampler_cost]
+    report_scalars = [total_cost, param_cost, sampler_cost, T.mean(accept)]
     gparams = []
     for param in params:
         gparam = T.grad(total_cost, param)
         gparams.append(gparam)
     
-    f_df=theano.function(params + [training, initial_vel,stepsizes,n_step], costs+gparams, name='func_f_df', allow_input_downcast=True)
+    f_df=theano.function(params + [training, initial_vel,stepsizes,n_step], report_scalars+gparams, name='func_f_df', allow_input_downcast=True)
     f_samples = theano.function(params + [initial_vel, stepsizes, n_step], [initial_pos_vec, final_pos_vec, final_pos], name='func_samples', allow_input_downcast=True)
     
     return f_df, f_samples
@@ -97,7 +97,7 @@ class training_objective:
         rval 1: param_cost and sampler_cost (list)
         rval 2: grad_sampler and grad_param (list)
         """
-        return results[:3], results[3:]
+        return results[:4], results[4:]
         
     def f_df_wrapper(self, params, *args):
         #input is the flattened version of params
@@ -120,8 +120,8 @@ class training_objective:
         f = 0.
         df = 0.
         f += f1[0]
-        print "total_cost=%g param_cost=%g sampler_cost=%g rms_samp=%g rms_J=%g rms_dsamp=%g rms_dJ=%g"%(
-            f1[0], f1[1], f1[2],
+        print "tot_cost=%g param_cost=%g samp_cost=%g acc=%g rms_samp=%g rms_J=%g rms_dsamp=%g rms_dJ=%g"%(
+            f1[0], f1[1], f1[2], f1[3],
             np.sqrt(np.mean(params_original[0]**2)),
             np.sqrt(np.mean(params_original[1]**2)),
             np.sqrt(np.mean(df1[0]**2)),
