@@ -22,9 +22,9 @@ from minimizer import RMSprop, LBFGS
 from theano import config
 
 def generate_plot(energy, stats_dict, ndim=2, true_init=False,
-    num_samplecounts=25, max_samplecount=10000,
+    num_samplecounts=25, max_samplecount=20000,
     # num_samplecounts=10, max_samplecount=50,
-    n_steps=100,
+    n_steps=300,
     # n_steps=10,
     ):
     # TODO break each subplot into its own function.
@@ -71,10 +71,10 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False,
         n_dim=2
         random_stepsizes = rng.rand(n_sample)
         random_interval = 1.5*random_stepsizes-1
-        stepsize_baseline = 0.1
+        stepsize_baseline = 0.2
         # stepsize_baseline = 0.1
         noise_level = 2
-        decay_rates0 = 0.9*np.ones(n_sample)
+        decay_rates0 = 0.0*np.ones(n_sample)
         stepsizes0 = stepsize_baseline*noise_level**random_interval 
        
         initial_v = rng.randn(n_sample, n_dim)
@@ -85,18 +85,23 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False,
         if true_init:
            initial_params = samples_true.copy()
         initial_params_flat = initial_params.flatten()
+        num_passes = 500
+        decay_alg = 0.9
+        learning_rate_alg = 0.05
+        alg_params = [decay_alg, learning_rate_alg, num_passes]    
         """
         args_hyper is the set of hyperparameters: initial momentum, stepsizes, number of samplers, n_sample and n_dim
         """
         args_hyper = [initial_v, decay_rates0, stepsizes0, n_steps, n_sample,2]
         
-        best_samples_list = scipy.optimize.fmin_l_bfgs_b(objective.f_df_wrapper, 
-                                    initial_params_flat,
-                                    args = args_hyper,
-                                    maxfun=500,
+        #best_samples_list = scipy.optimize.fmin_l_bfgs_b(objective.f_df_wrapper, 
+         #                           initial_params_flat,
+         #                           args = args_hyper,
+         #                           maxfun=500,
                                     # disp=1,
-                                    )
-        
+          #                          )
+        best_samples, final_cost = RMSprop(objective, alg_params, initial_params_flat.copy(), args_hyper)
+        train_objective.append(final_cost)
 
         # DEBUG again, with new velocity and step sizes
         for iii in range(0): #10): # DEBUG
@@ -117,9 +122,9 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False,
             
             
 
-        best_samples = best_samples_list[0].reshape(n_sample, n_dim)
+        #best_samples = best_samples_list[0].reshape(n_sample, n_dim)
         
-        train_objective.append(best_samples_list[1])
+        #train_objective.append(best_samples_list[1])
         """
         we only draw scatter plot for last run
         TODO this is a super hacky way to do this. one better option would be to store outputs for all numbers of samples in an array, and then call this as a function with the last element of that array.
@@ -144,7 +149,7 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False,
                 plt.plot(all_pos[0,traj_i,0], all_pos[0,traj_i,1], markersize=10, marker='o', label='trajectory %d'%traj_i, color = 'black')
             plt.xlabel('$x_1$')
             plt.ylabel('$x_2$')
-            plt.title('Example HMC trajectories')
+            plt.title('Example LMC trajectories')
      
             # tmp = np.concatenate((initial_pos_vec, final_pos_vec), axis=1)
             # tmp = tmp.reshape((n_steps-1, int(n_sample), 4))
@@ -215,8 +220,11 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False,
     
 energy_2d = energies.gauss_2d()
 base_stats = {
-    'mean': lambda x:x
-    #'sqr': lambda x: x**2
+    'mean': lambda x:x,
+    'sqr': lambda x: x**2,
+    'third': lambda x: x**3,
+    'exp': lambda x:T.exp(x),
+    'sin': lambda x:T.sin(x)
 }
 start_time = timeit.default_timer()
 for base_stat_name in base_stats:

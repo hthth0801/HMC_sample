@@ -41,9 +41,12 @@ def theano_funcs(energy, stats_dict):
     # get the samples in the end of the trajectory.
     final_pos = all_pos[-1] 
     nsamp = initial_pos.shape[0].astype(theano.config.floatX)
+    stepsizes_n_1 = stepsizes.dimshuffle(0,'x')
     for stat in stats_dict.itervalues():
         initial_stat = stat(initial_pos, T.ones_like(initial_pos)/nsamp)
+        #initial_stat = stat(initial_pos, 1./(nsamp*stepsizes_n_1))
         final_stat = stat(final_pos, T.ones_like(final_pos)/nsamp)
+        #final_stat = stat(final_pos, 1./(nsamp*stepsizes_n_1))
         sampler_cost = sampler_cost + T.sum((final_stat-initial_stat)**2)
     
     """
@@ -62,6 +65,7 @@ def theano_funcs(energy, stats_dict):
     # we want the gradient per-sample to stay large -- so scale by the number of samples!
     # this is # initial conditions * #steps
     sampler_cost *= nsamp
+    #sampler_cost = T.nnet.sigmoid(sampler_cost)
 
     ## and actually, let's make it really large -- see if this helps convergence
     #sampler_cost *= 1e10
@@ -116,10 +120,14 @@ class training_objective:
         f = 0.
         df = 0.
         f+=f1
-        print "tot_cost=%g, grad_pos = %g"%(
-            f1,
-            np.sqrt(np.mean(df1**2))
-            )
+        """
+        uncomment the following if we want to see the cost and grad along the optimization process
+        """
+        
+        #print "tot_cost=%g, grad_pos = %g"%(
+        #    f1,
+        #    np.sqrt(np.mean(df1**2))
+        #    )
         df+=df1.flatten()
 
         # DEBUG
