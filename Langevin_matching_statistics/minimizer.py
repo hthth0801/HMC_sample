@@ -26,6 +26,7 @@ def RMSprop(objective, alg_params, initial_params, args_hyper):
     num_passes = alg_params[2]
     """
     Learning rate schedule: O(1/t), epsilon_t = eta_0 * tao / max(t, tao)
+    or exponentially. eta_t = eta_0 * 10^(-t/tao)
     """
     tao = 100
   #  f_eval = np.ones(N)*np.nan
@@ -33,7 +34,14 @@ def RMSprop(objective, alg_params, initial_params, args_hyper):
     cache = 0.0
     cost = []
     for ipass in range(num_passes):
-        eta_t = eta_0 * tao / np.max([ipass, tao])
+        """
+        linearly, uncomment the following line
+        """
+        #eta_t = eta_0 * tao / np.max([ipass, tao])
+        """
+        exponentially
+        """
+        eta_t = eta_0 * 10**(-ipass/tao)
         f_i, df_i = objective.f_df_wrapper(params_i, *args_hyper)
         cost.append(f_i)
         cache = decay_rate * cache + (1.0 - decay_rate) * df_i **2
@@ -50,11 +58,14 @@ def RMSprop(objective, alg_params, initial_params, args_hyper):
     """
     """
     plt.figure()
+    plt.yscale('log')
+    plt.xscale('log')
     plt.title('convergence')
     plt.plot(cost_np)
     plt.ylabel('cost')
     plt.xlabel('iteration')
     """
+
     return best_samples, cost_np[-1]
     
 def LBFGS(objective, alg_params, initial_params, args_hyper):
