@@ -65,7 +65,7 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False,
     independent_samples=defaultdict(list)
     train_objective = []
     # compile the training objective
-    objective = training_objective_updateLMC.training_objective(energy, stats_dict)
+    objective = training_objective.training_objective(energy, stats_dict)
     for n_sample in n_sample_list:
         # print "processing sample = ", n_sample
         n_dim=2
@@ -74,7 +74,7 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False,
         stepsize_baseline = 0.2
         # stepsize_baseline = 0.1
         noise_level = 2
-        decay_rates0 = 0.5*np.ones(n_sample)
+        decay_rates0 = 0.0*np.ones(n_sample)
         stepsizes0 = stepsize_baseline*noise_level**random_interval 
        
         initial_v = rng.randn(n_sample, n_dim)
@@ -87,7 +87,7 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False,
         initial_params_flat = initial_params.flatten()
         num_passes = 500
         decay_alg = 0.9
-        learning_rate_alg = 0.5
+        learning_rate_alg = 0.05
         alg_params = [decay_alg, learning_rate_alg, num_passes]    
         """
         args_hyper is the set of hyperparameters: initial momentum, stepsizes, number of samplers, n_sample and n_dim
@@ -224,13 +224,7 @@ base_stats = {
     'sqr': lambda x: x**2,
     'third': lambda x: x**3,
     'exp': lambda x:T.exp(x),
-    'sin': lambda x:T.sin(x),
-    'sqrt': lambda x: T.sqrt(x**2 + 1e-5),
-    'log2': lambda x: T.log(1. + x**2),
-    'abs': lambda x: T.abs_(x),
-    'sqrt_inv': lambda x: x/T.sqrt(x**2 + 1e-5),
-    'inv_sqr': lambda x: 1./(x**2),
-    'inv_abs': lambda x: 1./T.abs_(x)
+    'sin': lambda x:T.sin(x)
 }
 start_time = timeit.default_timer()
 for base_stat_name in base_stats:
