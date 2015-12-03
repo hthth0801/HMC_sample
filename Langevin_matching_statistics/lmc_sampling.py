@@ -1,5 +1,12 @@
 # -*- coding: utf-8 -*-
 """
+Created on Sat Nov 28 12:12:16 2015
+
+@author: tian
+"""
+
+# -*- coding: utf-8 -*-
+"""
 Created on Sat Nov 07 11:02:53 2015
 perform the langevin dynamic sampling. Accept the updated states. 
 Choose stepsize to be small and trajectory to be long enough
@@ -31,14 +38,21 @@ def langevin_move(initial_pos, initial_vel, decay_rates, stepsizes, n_steps, ene
     energy_fn: the underlying energy function we wish to sample from. 
     """
     def langevin_dynamic(pos, vel, decay, step):
+        #decay_n_1 = decay.dimshuffle(0,'x')
+        #noise = s_rng.normal(size = vel.shape)
+        #vel_new = decay_n_1 * vel + T.sqrt(1.0 - decay_n_1**2) * noise
+        # update position by half timestep
+        stepsizes_n_1 = step.dimshuffle(0,'x')
+        pos_half = pos + 0.5*stepsizes_n_1*vel
+        # update velocity by full timestep
+        vel_full = vel - stepsizes_n_1 * T.grad(energy_fn(pos_half).sum(), pos_half)
+        # update position by half timestep
+        pos_new = pos_half + 0.5*stepsizes_n_1 * vel_full        
         # get the random N(0,1) for each step
         noise = s_rng.normal(size = vel.shape)
         # partial momentum refreshment
         decay_n_1 = decay.dimshuffle(0,'x')
-        vel_new = decay_n_1 * vel + T.sqrt(1.0 - decay_n_1**2) * noise
-        # Langvin simulation
-        stepsizes_n_1 = step.dimshuffle(0,'x')
-        pos_new = pos - 0.5*(stepsizes_n_1 ** 2)*T.grad(energy_fn(pos).sum(), pos) + stepsizes_n_1*vel_new
+        vel_new = decay_n_1 * vel_full + T.sqrt(1.0 - decay_n_1**2) * noise    
         # DEBUG also return the noise
         return [pos_new, vel_new, noise], {}
     
