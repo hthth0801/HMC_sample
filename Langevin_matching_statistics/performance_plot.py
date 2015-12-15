@@ -21,7 +21,217 @@ import training_objective
 from minimizer import RMSprop, LBFGS 
 from theano import config
 
-def generate_plot(energy, stats_dict, ndim=2, true_init=False,
+def generate_plot_passes(energy, stats_dict, n_dim=2, true_init=False,
+    num_passcounts = 30, max_passcount = 10000,
+    n_sample = 3000, n_steps = 300):
+        
+    rng = np.random.RandomState(12)
+    color_map = itertools.cycle(['b','r', 'k', 'g', 'c', 'm', 'y'])
+    n_pass_list = np.exp(np.linspace(np.log(100), np.log(max_passcount), num_passcounts)).astype(int)
+
+    estimated_samples = defaultdict(list)
+    independent_samples=defaultdict(list)
+    train_objective = []
+    # compile the training objective
+    objective = training_objective.training_objective(energy, stats_dict)
+    # initialize the common hyperparameters 
+    #n_dim=2
+    random_stepsizes = rng.rand(n_sample)
+    random_interval = 1.5*random_stepsizes-1
+    stepsize_baseline = 0.2
+    # stepsize_baseline = 0.1
+    noise_level = 2
+    decay_rates0 = 0.5*np.ones(n_sample)
+    stepsizes0 = stepsize_baseline*noise_level**random_interval 
+       
+    initial_v = rng.randn(n_sample, n_dim)
+    n_sample_true = 10000
+    samples_true = energy.generate_samples(n_sample_true)
+
+    initial_params = rng.randn(n_sample, n_dim)
+    if true_init:
+        initial_params = samples_true.copy()
+    initial_params_flat = initial_params.flatten()
+    decay_alg = 0.9
+    learning_rate_alg = 0.5
+    args_hyper = [initial_v, decay_rates0, stepsizes0, n_steps, n_sample,n_dim] 
+        
+    for num_passes in n_pass_list:
+        print "processing the pass number = ", num_passes
+        alg_params = [decay_alg, learning_rate_alg, num_passes] 
+        # initial_params = rng3.uniform(size=(n_sample, n_dim))*10. - 5.
+        """
+        args_hyper is the set of hyperparameters: initial momentum, stepsizes, number of samplers, n_sample and n_dim
+        """
+       
+        
+        
+        #best_samples_list = scipy.optimize.fmin_l_bfgs_b(objective.f_df_wrapper, 
+         #                           initial_params_flat,
+         #                           args = args_hyper,
+         #                           maxfun=500,
+                                    # disp=1,
+          #                          )
+        best_samples, final_cost = RMSprop(objective, alg_params, initial_params_flat.copy(), args_hyper)
+        train_objective.append(final_cost)
+        for stat_name in sorted(stats_dict.keys()):
+            xx = T.fmatrix()
+            yy = stats_dict[stat_name](xx, T.ones_like(xx)/xx.shape[0].astype(theano.config.floatX))
+            stat_func = theano.function([xx], yy, allow_input_downcast=True)
+
+            # mean here is over dimensions of stats output, NOT over samples
+            # mean over samples is taken internally in the stat
+            estimated_samples[stat_name].append(np.mean(stat_func(best_samples)))
+            independent_samples[stat_name].append(np.mean(stat_func(samples_true)))
+    for stat_name in sorted(stats_dict.keys()):
+        estimated_samples[stat_name] = np.asarray(estimated_samples[stat_name])
+        independent_samples[stat_name] = np.asarray(independent_samples[stat_name])
+    train_objective = np.asarray(train_objective)
+    if true_init:
+        print "true init, ",
+
+    plt.subplot(1,2,1)
+    plt.xscale('log')
+    plt.yscale('log')
+    for stat_name in sorted(stats_dict.keys()):
+        color_current = next(color_map)
+        plt.plot(n_pass_list, estimated_samples[stat_name], '.', markersize=6, marker='o', label='Characteristic ' + stat_name, color = color_current)
+        color_current = next(color_map)
+        plt.plot(n_pass_list, independent_samples[stat_name], label='Independent ' + stat_name, color = color_current)
+        print "%s char %g ind %g, "%(stat_name, estimated_samples[stat_name][-1], independent_samples[stat_name][-1]),
+    print
+    plt.xlabel('# iterations')
+    plt.ylabel('Value')
+    plt.title('Target statistic')
+    plt.legend(loc='upper left')
+    #plt.ylim([0,4]) # TODO don't hardcode this
+    #plt.legend(bbox_to_anchor=(0.,1.02, 1.,.102),loc=3,ncol=1,mode='expand', borderaxespad=0.)
+           
+
+    plt.subplot(1,2,2)
+    plt.xscale('log') 
+    plt.yscale('log')
+    # plt.plot(n_sample_list, ((estimated_samples-true_values)**2), color='red', label='true')  
+    plt.plot(n_pass_list, train_objective, color='black', label="object.")
+    plt.xlabel('# iterations')
+    plt.ylabel('Training error')
+    plt.title('Objective')
+    plt.tight_layout()
+    plt.show() 
+    plt_name = 'long_' + energy.name + '-' + '_'.join(str(elem) for elem in sorted(stats_dict.keys())) 
+    if true_init:
+       plt_name += "_true-init"
+    plt_name += '_iterations_true_new' + '.pdf'
+    plt.savefig(plt_name)
+    plt.close()
+
+
+def generate_plot_steps(energy, stats_dict, n_dim=2, true_init=False,
+    num_stepcounts = 25, max_stepcount = 1000,
+    n_sample = 3000):
+        
+    rng = np.random.RandomState(12)
+    color_map = itertools.cycle(['b','r', 'k', 'g', 'c', 'm', 'y'])
+    n_step_list = np.exp(np.linspace(np.log(20), np.log(max_stepcount), num_stepcounts)).astype(int)
+
+    estimated_samples = defaultdict(list)
+    independent_samples=defaultdict(list)
+    train_objective = []
+    # compile the training objective
+    objective = training_objective.training_objective(energy, stats_dict)
+    # initialize the common hyperparameters 
+    #n_dim=2
+    random_stepsizes = rng.rand(n_sample)
+    random_interval = 1.5*random_stepsizes-1
+    stepsize_baseline = 0.2
+    # stepsize_baseline = 0.1
+    noise_level = 2
+    decay_rates0 = 0.5*np.ones(n_sample)
+    stepsizes0 = stepsize_baseline*noise_level**random_interval 
+       
+    initial_v = rng.randn(n_sample, n_dim)
+    n_sample_true = 10000
+    samples_true = energy.generate_samples(n_sample_true)
+
+    initial_params = rng.randn(n_sample, n_dim)
+    if true_init:
+        initial_params = samples_true.copy()
+    initial_params_flat = initial_params.flatten()
+    num_passes = 1000
+    decay_alg = 0.9
+    learning_rate_alg = 0.5
+    alg_params = [decay_alg, learning_rate_alg, num_passes]    
+        
+    for n_steps in n_step_list:
+        print "processing step = ", n_steps
+        # initial_params = rng3.uniform(size=(n_sample, n_dim))*10. - 5.
+        """
+        args_hyper is the set of hyperparameters: initial momentum, stepsizes, number of samplers, n_sample and n_dim
+        """
+        args_hyper = [initial_v, decay_rates0, stepsizes0, n_steps, n_sample,n_dim]
+        
+        
+        #best_samples_list = scipy.optimize.fmin_l_bfgs_b(objective.f_df_wrapper, 
+         #                           initial_params_flat,
+         #                           args = args_hyper,
+         #                           maxfun=500,
+                                    # disp=1,
+          #                          )
+        best_samples, final_cost = RMSprop(objective, alg_params, initial_params_flat.copy(), args_hyper)
+        train_objective.append(final_cost)
+        for stat_name in sorted(stats_dict.keys()):
+            xx = T.fmatrix()
+            yy = stats_dict[stat_name](xx, T.ones_like(xx)/xx.shape[0].astype(theano.config.floatX))
+            stat_func = theano.function([xx], yy, allow_input_downcast=True)
+
+            # mean here is over dimensions of stats output, NOT over samples
+            # mean over samples is taken internally in the stat
+            estimated_samples[stat_name].append(np.mean(stat_func(best_samples)))
+            independent_samples[stat_name].append(np.mean(stat_func(samples_true)))
+    for stat_name in sorted(stats_dict.keys()):
+        estimated_samples[stat_name] = np.asarray(estimated_samples[stat_name])
+        independent_samples[stat_name] = np.asarray(independent_samples[stat_name])
+    train_objective = np.asarray(train_objective)
+    if true_init:
+        print "true init, ",
+
+    plt.subplot(1,2,1)
+    plt.xscale('log')
+    plt.yscale('log')
+    for stat_name in sorted(stats_dict.keys()):
+        color_current = next(color_map)
+        plt.plot(n_step_list, estimated_samples[stat_name], '.', markersize=6, marker='o', label='Characteristic ' + stat_name, color = color_current)
+        color_current = next(color_map)
+        plt.plot(n_step_list, independent_samples[stat_name], label='Independent ' + stat_name, color = color_current)
+        print "%s char %g ind %g, "%(stat_name, estimated_samples[stat_name][-1], independent_samples[stat_name][-1]),
+    print
+    plt.xlabel('# steps')
+    plt.ylabel('Value')
+    plt.title('Target statistic')
+    plt.legend(loc='lower right')
+    #plt.ylim([0,4]) # TODO don't hardcode this
+    #plt.legend(bbox_to_anchor=(0.,1.02, 1.,.102),loc=3,ncol=1,mode='expand', borderaxespad=0.)
+           
+
+    plt.subplot(1,2,2)
+    plt.xscale('log') 
+    plt.yscale('log')
+    # plt.plot(n_sample_list, ((estimated_samples-true_values)**2), color='red', label='true')  
+    plt.plot(n_step_list, train_objective, color='black', label="object.")
+    plt.xlabel('# steps')
+    plt.ylabel('Training error')
+    plt.title('Objective')
+    plt.tight_layout()
+    plt.show() 
+    plt_name = 'long_' + energy.name + '-' + '_'.join(str(elem) for elem in sorted(stats_dict.keys())) 
+    if true_init:
+       plt_name += "_true-init"
+    plt_name += '_steps_true_20d' + '.pdf'
+    plt.savefig(plt_name)
+    plt.close()
+
+
+def generate_plot_samples(energy, stats_dict, ndim=2, true_init=False,
     num_samplecounts=25, max_samplecount=20000,
     # num_samplecounts=10, max_samplecount=50,
     n_steps=300,
@@ -68,7 +278,7 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False,
     objective = training_objective.training_objective(energy, stats_dict)
     for n_sample in n_sample_list:
         # print "processing sample = ", n_sample
-        n_dim=2
+        #n_dim=2
         random_stepsizes = rng.rand(n_sample)
         random_interval = 1.5*random_stepsizes-1
         stepsize_baseline = 0.2
@@ -92,7 +302,7 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False,
         """
         args_hyper is the set of hyperparameters: initial momentum, stepsizes, number of samplers, n_sample and n_dim
         """
-        args_hyper = [initial_v, decay_rates0, stepsizes0, n_steps, n_sample,2]
+        args_hyper = [initial_v, decay_rates0, stepsizes0, n_steps, n_sample,n_dim]
         
         #best_samples_list = scipy.optimize.fmin_l_bfgs_b(objective.f_df_wrapper, 
          #                           initial_params_flat,
@@ -203,7 +413,7 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False,
     # plt.plot(n_sample_list, ((estimated_samples-true_values)**2), color='red', label='true')  
     plt.plot(n_sample_list, train_objective, color='black', label="object.")
     plt.xlabel('# samples')
-    plt.ylabel('RMS error')
+    plt.ylabel('Training error')
     plt.title('Objective')
     # plt.legend(loc='upper right')
     #plt.legend(bbox_to_anchor=(0.,1.02, 1.,.102),loc=3,ncol=1,mode='expand', borderaxespad=0.)
@@ -217,20 +427,23 @@ def generate_plot(energy, stats_dict, ndim=2, true_init=False,
     plt_name += '.pdf'
     plt.savefig(plt_name)
     plt.close()
+
+
     
-energy_2d = energies.gauss_2d()
+#energy_2d = energies.gauss_2d()
+energy_20d = energies.gauss_nd(20)
 base_stats = {
-    'mean': lambda x:x,
+    #'mean': lambda x:x,
     'sqr': lambda x: x**2,
-    'third': lambda x: x**3,
-    'exp': lambda x:T.exp(x),
-    'sin': lambda x:T.sin(x),
-    'sqrt': lambda x: T.sqrt(x**2 + 1e-5),
-    'log2': lambda x: T.log(1. + x**2),
-    'abs': lambda x: T.abs_(x),
-    'sqrt_inv': lambda x: x/T.sqrt(x**2 + 1e-5),
-    'inv_sqr': lambda x: 1./(x**2),
-    'inv_abs': lambda x: 1./T.abs_(x)
+    #'third': lambda x: x**3,
+    #'exp': lambda x:T.exp(x),
+    #'sin': lambda x:T.sin(x),
+    #'sqrt': lambda x: T.sqrt(x**2 + 1e-5),
+    #'log2': lambda x: T.log(1. + x**2),
+    #'abs': lambda x: T.abs_(x),
+    #'sqrt_inv': lambda x: x/T.sqrt(x**2 + 1e-5),
+    #'inv_sqr': lambda x: 1./(x**2),
+    #'inv_abs': lambda x: 1./T.abs_(x)
 }
 start_time = timeit.default_timer()
 for base_stat_name in base_stats:
@@ -238,6 +451,6 @@ for base_stat_name in base_stats:
     stat_dict[base_stat_name] = lambda x, w: T.sum(
         w*base_stats[base_stat_name](x),
         axis=0)
-    generate_plot(energy_2d, stat_dict, 2)
+    generate_plot_steps(energy_20d, stat_dict, 20)
 end_time = timeit.default_timer()
 print "compiling time = ", end_time-start_time    
