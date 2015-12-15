@@ -28,7 +28,7 @@ def RMSprop(objective, alg_params, initial_params, args_hyper):
     Learning rate schedule: O(1/t), epsilon_t = eta_0 * tao / max(t, tao)
     or exponentially. eta_t = eta_0 * 10^(-t/tao)
     """
-    tao = 100
+    tao = num_passes / 4
   #  f_eval = np.ones(N)*np.nan
     params_i = initial_params.copy()
     cache = 0.0
