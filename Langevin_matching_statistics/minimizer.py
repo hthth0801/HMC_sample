@@ -14,6 +14,7 @@ def RMSprop(objective, alg_params, initial_params, args_hyper):
     initial_params: initialization for the parameters which we want to optimize, vectorized version
     args_hyper: set of hyper-parameters for the theano function. 
                 [initial_v, decay_rates, stepsizes, num_step, n_sample, n_dim]
+            or[objective.data, objective.label, initial_v, decay_rates, stepsizes, num_step, n_sample, n_dim]
     """
     n_sample = args_hyper[-2]
     n_dim = args_hyper[-1]
@@ -52,11 +53,11 @@ def RMSprop(objective, alg_params, initial_params, args_hyper):
             break
     cost_np = np.asarray(cost)
     optimal_params = params_i
-    best_samples = optimal_params.reshape(n_sample, n_dim)
+    best_samples = optimal_params.reshape(n_sample, n_dim) 
     """
     uncomment the following if we want to plot the convergence curve
     """
-    """
+
     plt.figure()
     plt.yscale('log')
     plt.xscale('log')
@@ -64,7 +65,7 @@ def RMSprop(objective, alg_params, initial_params, args_hyper):
     plt.plot(cost_np)
     plt.ylabel('cost')
     plt.xlabel('iteration')
-    """
+
 
     return best_samples, cost_np[-1]
     
