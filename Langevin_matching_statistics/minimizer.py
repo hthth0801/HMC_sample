@@ -29,12 +29,32 @@ def RMSprop(objective, alg_params, initial_params, args_hyper):
     Learning rate schedule: O(1/t), epsilon_t = eta_0 * tao / max(t, tao)
     or exponentially. eta_t = eta_0 * 10^(-t/tao)
     """
-    tao = num_passes / 4
+    tao = num_passes / 3.
+   
+    
+    """
+    We also try to annealing the step of the leapfrog integrator
+    Similar to inverse annealing wrt the iteration number: ceil(100*ipass/num_pass)
+    """
+    n_step_anneal = args_hyper[-3]
+    args_hyper_anneal =  list(args_hyper)
+    #tao_step = n_step_anneal / 10.
+    tao_step = 5.
+    
   #  f_eval = np.ones(N)*np.nan
     params_i = initial_params.copy()
     cache = 0.0
     cost = []
     for ipass in range(num_passes):
+        """
+        We inversly annealing the number of leapfrog steps
+        Just use the new args_hyper_anneal list to store the new hyper-parameters 
+        Only change the [-3] item, which the n_step
+        """
+        args_hyper_anneal[-3] = np.ceil(np.max([tao_step, ipass+1.])*float(n_step_anneal)/num_passes)
+        #args_hyper_anneal[-3] = np.ceil((ipass+1.)*float(n_step_anneal)/num_passes) # from small to large
+        #args_hyper_anneal[-3] = np.ceil(float(4.)*num_passes/(ipass+1.))
+        print args_hyper_anneal[-3]         
         """
         linearly, uncomment the following line
         """
@@ -43,7 +63,7 @@ def RMSprop(objective, alg_params, initial_params, args_hyper):
         exponentially
         """
         eta_t = eta_0 * 10**(-ipass/tao)
-        f_i, df_i = objective.f_df_wrapper(params_i, *args_hyper)
+        f_i, df_i = objective.f_df_wrapper(params_i, *args_hyper_anneal)
         cost.append(f_i)
         cache = decay_rate * cache + (1.0 - decay_rate) * df_i **2
         params_i += -eta_t * df_i / np.sqrt(cache + 1e-8)
