@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Nov 13 11:26:35 2015
-optimizer for for matching statistics
+Created on Thu Jan 14 10:56:37 2016
+minimizer that returns the gradient evaluation numbers and the estimated parameters along the optimation process
 @author: tian
 """
+# -*- coding: utf-8 -*-
+
 import numpy as np
 import scipy.optimize
 import matplotlib.pyplot as plt
@@ -16,6 +18,7 @@ def RMSprop(objective, alg_params, initial_params, args_hyper):
                 [initial_v, decay_rates, stepsizes, num_step, n_sample, n_dim]
             or[objective.data, objective.label, initial_v, decay_rates, stepsizes, num_step, n_sample, n_dim]
     """
+    n_step = args_hyper[-3]
     n_sample = args_hyper[-2]
     n_dim = args_hyper[-1]
     decay_rate = alg_params[0]
@@ -36,10 +39,11 @@ def RMSprop(objective, alg_params, initial_params, args_hyper):
     We also try to annealing the step of the leapfrog integrator
     Similar to inverse annealing wrt the iteration number: ceil(100*ipass/num_pass)
     """
-    n_step_anneal = args_hyper[-3]
-    args_hyper_anneal =  list(args_hyper)
+    #n_step_anneal = args_hyper[-3]
+    #args_hyper_anneal =  list(args_hyper)
     #tao_step = n_step_anneal / 10.
-    #tao_step = 10.
+   # tao_step = 10.
+    
     """
     get a dict contains the #GE and the corresponding esimated parameters along the optimization process
     """
@@ -49,22 +53,21 @@ def RMSprop(objective, alg_params, initial_params, args_hyper):
     params_i = initial_params.copy()
     #num_GE += n_sample*n_step
     sample_GE[num_GE] = params_i.copy().reshape(n_sample, n_dim)    
-    eta_min = eta_0 * 10**(-num_passes/tao)
- 
+    
     cache = 0.0
     cost = []
+    #eta_min = eta_0 * 10**(-num_passes / tao)
     for ipass in range(num_passes):
-        
+        num_GE += n_sample* n_step
         """
         We inversly annealing the number of leapfrog steps
         Just use the new args_hyper_anneal list to store the new hyper-parameters 
         Only change the [-3] item, which the n_step
-        """        
+        """
         #args_hyper_anneal[-3] = np.ceil(np.max([tao_step, ipass+1.])*float(n_step_anneal)/num_passes)
-       
         #args_hyper_anneal[-3] = np.ceil((ipass+1.)*float(n_step_anneal)/num_passes) # from small to large
         #args_hyper_anneal[-3] = np.ceil(float(4.)*num_passes/(ipass+1.))
-        print args_hyper_anneal[-3]         
+        #print args_hyper_anneal[-3]         
         """
         linearly, uncomment the following line
         """
@@ -73,14 +76,14 @@ def RMSprop(objective, alg_params, initial_params, args_hyper):
         exponentially
         """
         eta_t = eta_0 * 10**(-ipass/tao)
-        step_anneal = np.ceil(float(n_step_anneal)*eta_min / eta_t)
-        num_GE += n_sample*step_anneal
-        args_hyper_anneal[-3] = step_anneal
-        f_i, df_i = objective.f_df_wrapper(params_i, *args_hyper_anneal)
+        f_i, df_i = objective.f_df_wrapper(params_i, *args_hyper)
         cost.append(f_i)
         cache = decay_rate * cache + (1.0 - decay_rate) * df_i **2
         params_i += -eta_t * df_i / np.sqrt(cache + 1e-8)
+        #current_params = params_i.copy()
+        #sample_GE[num_GE] = params_i.reshape(n_sample, n_dim)
         sample_GE.update({num_GE: params_i.copy().reshape(n_sample, n_dim)})
+        #print "dict value is ", sample_GE[num_GE]
         #print "cost = ", f_i
         if not np.isfinite(f_i):
             print("Non-finite func")
@@ -103,20 +106,5 @@ def RMSprop(objective, alg_params, initial_params, args_hyper):
 
     return best_samples, cost_np[-1], sample_GE
     
-def LBFGS(objective, alg_params, initial_params, args_hyper):
-    """
-    Here, alg_params just the number of func. calls for the l_bfgs algorithms
-    """
-    n_sample = args_hyper[-2]
-    n_dim = args_hyper[-1]
-    num_passes = alg_params[0]
-    
-    best_samples_list = scipy.optimize.fmin_l_bfgs_b(objective.f_df_wrapper, 
-                                    initial_params.copy(),
-                                    args = args_hyper,
-                                    maxfun=num_passes,
-                                    # disp=1,
-                                    )
-    best_samples = best_samples_list[0].reshape(n_sample, n_dim)
-    return best_samples, best_samples_list[1]
+
 
