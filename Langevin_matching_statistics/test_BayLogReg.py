@@ -12,7 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from collections import defaultdict
 
-from minimizer import RMSprop, LBFGS
+from minimizer_wt_annealing import RMSprop
 import energies
 #import training_objective
 #import training_objective_hmc
@@ -111,7 +111,7 @@ for base_stat_name in base_stats:
 do Langevin dynamic
 """
 objective_lmc = training_objective_BayLogReg.training_objective(energy_BayLogReg, stat_dict)
-best_samples, f_cost = RMSprop(objective_lmc, alg_params, initial_params_flat.copy(), args_hyper_lmc)
+best_samples, f_cost, sample_GE = RMSprop(objective_lmc, alg_params, initial_params_flat.copy(), args_hyper_lmc)
 #objective_lmc = training_objective.training_objective(energy_2d, stat_dict)
 #best_samples, f_cost = RMSprop(objective_lmc, alg_params, initial_params_flat.copy(), args_hyper_lmc)
 #best_samples, f_cost = LBFGS(objective_lmc,alg_params, initial_params_flat.copy(), args_hyper_lmc )
