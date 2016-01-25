@@ -84,8 +84,8 @@ class BayeLogReg:
         data: theano matrix [n_data * dim]
         label: theano vector [n_data]
         """
-        self.data = T.matrix('data')
-        self.label = T.vector('label')
+        self.data = T.matrix('data_BayLog')
+        self.label = T.vector('label_BayLog')
         self.sigma2_np = np.array(100, dtype = theano.config.floatX)
         self.sigma2 = theano.shared(self.sigma2_np)
         # dim is the dimension of the data, so theta is actually n_sample*(n_dim+1)
@@ -119,7 +119,100 @@ class BayeLogReg:
         # return the energy which is theano vector [n_sample]
         return Prior + Likelihood
         
+class LGCPP:
+    """
+    Log-Gaussian Cox Point Process
+    """
+    def __init__(self, N = 64):
+        """
+        N represents the grid size, default, we consider 64*64 grid
+        Set up the hyperparameters below. see Christensen et al. 2005
+        """
+        d = N**2
+        beta = 1/33.
+        sigma2 = 1.91
+        mu = np.log(126) - sigma2/2
+        """
+        discretize the [0, 1]^2 into 64 * 64 regular grid
+        """
+        x_r = np.linspace(0, 1., num=N)
+        y_r = np.linspace(0, 1., num = N)
+        [xs, ys] = np.meshgrid(x_r, y_r)
+
+        coord_flat = np.asarray([xs.flatten(), ys.flatten()]) # 2 * 4096
+        coord_list = coord_flat.T # 4096*2 first column is the x-axis, the second is the y-axis, based on row order
+
+        Sigma = np.zeros((d, d))
+        for i in range(coord_list.shape[0]):
+            diff = coord_list[i] - coord_list
+            Sigma[i] = np.sqrt(np.sum(diff**2, axis = 1))
+        """
+        set up the cov and mu for the Gaussian 
+        """
+        self.cov_np = (sigma2 * np.exp(-Sigma / (N*beta))).astype(theano.config.floatX)
+        self.cov_np_inv = linalg.inv(self.cov_np)
+        self.cov_inv = theano.shared(self.cov_np_inv)
+        self.mu_np = ((np.ones(d) * mu).astype(theano.config.floatX)).reshape((1,-1))
+        self.mu = theano.shared(self.mu_np.ravel()).reshape((1, -1))
         
+        self.Y = T.vector('posion_count_LGCPP')    
+        self.area_np = 1./d
+        self.area = theano.shared(1./d)
+        self.N = N
+        self.name = 'LGCPP'
+        
+    def E(self, X):
+        """
+        X is the latent field we want to estimate
+        """
+        """
+        Prior for latent field X
+        """
+        Prior = T.sum( T.dot((X-self.mu), self.cov_inv) * (X-self.mu), axis=1)/2.
+        Likelihood = -T.dot(X, self.Y) +  T.sum(self.area * T.exp(X), axis=1)
+        #return Prior,  Likelihood, T.dot(X, self.Y)
+        return Prior + Likelihood
+
+    def generate_samples(self, N=64):
+        """
+        TODO: we need to really generate samples based on the whole generative process
+        Here, just use the one provided in Ziyu wang's page. 
+        MyFile.txt contains two columns: (column first, cause previously saved using matlab)
+               first column is the vectorized latent field (to be used to compare the latend field we estimated)
+               second column is the vectorized posion count (to be used to initiating the theano vector: self.Y)
+               
+        Return two things: (1) the generated "true" latent field X. (2) the posion count Y. 
+        """
+        data_lgcpp = np.loadtxt('MyFile.txt')
+        X_python = data_lgcpp[:,0].reshape(N, N)
+        Y_python = data_lgcpp[:,1].reshape(N, N)
+             
+        return X_python.T.ravel().astype(theano.config.floatX), Y_python.T.ravel().astype(theano.config.floatX)
+    def generate_samples2(self, n_sample):
+        """
+        generate one gaussian latent field, then based on this field, generate the poisson count
+        """
+        #samples_sd_normal = rng.normal(size=(1, self.N**2)).astype(theano.config.floatX)
+        #samples_X = (linalg.sqrtm(self.cov_np).dot(samples_sd_normal.T)).T + self.mu_np
+        samples_X = rng.multivariate_normal(self.mu_np.ravel(), self.cov_np)
+        """
+        it seems that the obtained samples_X (by decomposing cov matrix) contains the complex number, 
+        so cannot be used to generate the poisson count.  Instead try multivariate_normal function      
+        """        
+        samples_Y = rng.poisson(self.area_np * np.exp(samples_X), size = (n_sample, self.N**2))
+        return samples_X.astype(theano.config.floatX), samples_Y.ravel().astype(theano.config.floatX)
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+
+     
         
 
         
